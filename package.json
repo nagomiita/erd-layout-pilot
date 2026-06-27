@@ -2,7 +2,7 @@
   "name": "erd-layout-pilot",
   "displayName": "ERD Layout Pilot",
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "nagomiita-local",
   "repository": {
     "type": "git",
