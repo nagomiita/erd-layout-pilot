@@ -2,7 +2,7 @@
   "name": "erd-layout-pilot",
   "displayName": "ERD Layout Pilot",
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "publisher": "nagomiita-local",
   "repository": {
     "type": "git",
@@ -18,6 +18,7 @@
   "activationEvents": [
     "onLanguage:dbml",
     "onCommand:erd-layout.openDiagram",
+    "onCommand:erd-layout.autoLayout",
     "onCommand:erd-layout.openConfig",
     "onCommand:erd-layout.openLayoutPreview",
     "onCommand:erd-layout.openDbmlPreview",
@@ -47,6 +48,11 @@
         "command": "erd-layout.openDiagram",
         "title": "ERD: Open Diagram",
         "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "erd-layout.autoLayout",
+        "title": "ERD: Auto Layout (grouped)",
+        "icon": "$(layout)"
       },
       {
         "command": "erd-layout.openConfig",
@@ -87,6 +93,11 @@
           "command": "erd-layout.openDiagram",
           "when": "resourceLangId == dbml",
           "group": "navigation@1"
+        },
+        {
+          "command": "erd-layout.autoLayout",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@2"
         }
       ],
       "explorer/context": [

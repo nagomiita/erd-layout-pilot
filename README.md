@@ -23,6 +23,7 @@ open diagram.
 ## Commands
 
 - ERD: Open Diagram
+- ERD: Auto Layout (grouped)
 - ERD Layout: Open Config
 - ERD Layout: Open Layout Preview
 - ERD Layout: Open DBML Preview
@@ -31,6 +32,34 @@ open diagram.
 - ERD Layout: Arrange Group Grid
 - ERD Layout: Pack All Groups
 - ERD Layout: Apply Instruction
+
+## Auto Layout (grouped, FK-aware)
+
+`ERD: Auto Layout (grouped)` (title-bar button, command palette, or the
+"Grouped (FK-aware)" option of the diagram's **Auto arrange**) computes a
+deterministic layout from the parsed `.dbml` and writes it to `.dbdiagram`.
+The algorithm is intentionally simple and reproducible:
+
+1. **Cluster by TableGroup** — each `TableGroup` becomes one cluster; ungrouped
+   tables share a single `(ungrouped)` cluster.
+2. **Order groups by connectivity** — build a weighted group graph from
+   inter-group FK counts, then seriate groups into a chain greedily: start from
+   the most-connected group, then repeatedly append the group most strongly
+   connected to those already placed (ties broken by size, then name). This keeps
+   strongly-related groups spatially adjacent.
+3. **Place clusters on a grid** — clusters are laid out left-to-right,
+   top-to-bottom on a grid of `ceil(sqrt(groupCount))` columns, using
+   boustrophedon (snake) row direction so consecutive groups in the chain remain
+   neighbours across row breaks.
+4. **Within a cluster** — member tables are placed in a grid of `ceil(sqrt(n))`
+   columns, ordered by FK degree (hub tables first), so highly-connected tables
+   sit at the cluster's top-left.
+5. **Sizing** — card heights are derived from column counts; fixed table/group
+   gaps and padding keep clusters visually separated.
+
+Because the algorithm is pure and deterministic, re-running it always yields the
+same result for a given `.dbml`. Manual drag adjustments afterwards are preserved
+until the command is run again.
 
 ## Settings
 

@@ -12,6 +12,7 @@ import {
 import { arrangeGroupGrid, moveGroup, packAllGroups } from './layout/groupOps';
 import { cleanupInvalidReferencePaths, validateDbdiagram } from './layout/validate';
 import { buildDiagramData, removeStaleTables } from './dbml/parser';
+import { computeAutoLayout } from './layout/autoLayout';
 import { renderDiagramHtml } from './webview/diagramView';
 import type { DbdiagramFile } from './model/types';
 
@@ -152,6 +153,32 @@ async function cleanupStaleTables(): Promise<number> {
   return removed;
 }
 
+async function applyAutoLayout(): Promise<number> {
+  const settings = getSettings();
+  const filePath = resolveLayoutPath(settings);
+  const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+  const payload = await readDbdiagram(filePath);
+  const data = await buildDiagramData(dbmlPath, payload);
+  if (data.parseError) {
+    throw new Error(`Cannot auto layout: ${data.parseError}`);
+  }
+  const positions = computeAutoLayout(data);
+  let applied = 0;
+  for (const table of data.tables) {
+    const point = positions.get(table.id);
+    if (!point) continue;
+    upsertPosition(payload, {
+      name: table.name,
+      schema: table.schema,
+      x: point.x,
+      y: point.y,
+    });
+    applied += 1;
+  }
+  await writeDbdiagram(filePath, payload);
+  return applied;
+}
+
 async function renderDiagram(): Promise<void> {
   if (!diagramPanel) {
     return;
@@ -200,6 +227,12 @@ async function openDiagram(uri?: vscode.Uri): Promise<void> {
           const removed = await cleanupStaleTables();
           void vscode.window.showInformationMessage(
             `ERD Diagram: removed ${removed} stale table(s) from layout.`,
+          );
+          await renderDiagram();
+        } else if (message.type === 'autoLayout') {
+          const applied = await applyAutoLayout();
+          void vscode.window.showInformationMessage(
+            `ERD Diagram: auto-laid out ${applied} table(s).`,
           );
           await renderDiagram();
         } else if (message.type === 'reload') {
@@ -511,6 +544,15 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
   );
+
+  register(context, 'erd-layout.autoLayout', async () => {
+    const applied = await applyAutoLayout();
+    await renderDiagram();
+    await refreshDbmlAfterLayoutChange(getSettings());
+    void vscode.window.showInformationMessage(
+      `ERD Layout: auto-laid out ${applied} table(s).`,
+    );
+  });
 
   register(context, 'erd-layout.openConfig', openConfig);
   register(context, 'erd-layout.openLayoutPreview', openLayoutPreview);
