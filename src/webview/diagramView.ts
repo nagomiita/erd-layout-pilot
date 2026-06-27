@@ -130,12 +130,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     min-width: 0; display: flex; align-items: baseline; gap: 6px; line-height: 1.2;
     overflow: hidden;
   }
-  .logical,
-  .physical {
+  .name-main,
+  .name-sub {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .logical { font-weight: 700; }
-  .physical { color: var(--muted); font-size: 10px; font-weight: 500; }
+  .name-main { font-weight: 700; }
+  .name-sub { color: var(--muted); font-size: 10px; font-weight: 500; }
   .card-head .badge { margin-left: auto; font-size: 10px; color: var(--muted); font-weight: 500; }
   .col {
     height: ${ROW_HEIGHT}px; display: flex; align-items: center; gap: 6px;
@@ -183,6 +183,10 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     <button id="zoomOut" title="縮小">−</button>
     <button id="reload">再読み込み</button>
     <button id="updateLatest" title="最新リリースへ更新">更新</button>
+    <select id="nameMode" title="表示名">
+      <option value="physical">物理名</option>
+      <option value="logical">論理名</option>
+    </select>
   </div>
   <div id="banner"></div>
   <div id="stage">
@@ -226,6 +230,39 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     const cardEls = new Map();
     let activeHighlightId = null;
     let dragTableId = null;
+    let nameMode = 'physical';
+
+    function appendNameLabel(parent, physicalName, logicalNameValue){
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.dataset.physical = physicalName;
+      label.dataset.logical = logicalNameValue || '';
+      const main = document.createElement('span');
+      main.className = 'name-main';
+      label.appendChild(main);
+      const sub = document.createElement('span');
+      sub.className = 'name-sub';
+      label.appendChild(sub);
+      parent.appendChild(label);
+      updateNameLabel(label);
+    }
+
+    function updateNameLabel(label){
+      const physical = label.dataset.physical || '';
+      const logical = label.dataset.logical || '';
+      const main = label.querySelector('.name-main');
+      const sub = label.querySelector('.name-sub');
+      const hasLogical = Boolean(logical);
+      main.textContent = nameMode === 'logical' && hasLogical ? logical : physical;
+      sub.textContent = nameMode === 'logical' && hasLogical ? physical : (hasLogical ? logical : '');
+      sub.style.display = sub.textContent ? '' : 'none';
+    }
+
+    function updateNameMode(mode){
+      nameMode = mode;
+      document.querySelectorAll('.label').forEach(updateNameLabel);
+      scheduleMagnifier();
+    }
 
     function buildCards(){
       DATA.tables.forEach(t => {
@@ -240,40 +277,25 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         head.className = 'card-head';
         head.style.background = hexA(accent, 0.18);
         head.style.borderBottom = '1px solid ' + hexA(accent, 0.55);
-        const tableLogical = logicalName(t.note);
-        const label = document.createElement('span');
-        label.className = 'label';
-        const logical = document.createElement('span');
-        logical.className = 'logical';
-        logical.textContent = tableLogical || t.name;
-        label.appendChild(logical);
-        if (tableLogical) {
-          const physical = document.createElement('span');
-          physical.className = 'physical';
-          physical.textContent = t.name;
-          label.appendChild(physical);
-        }
-        head.appendChild(label);
+        appendNameLabel(head, t.name, logicalName(t.note));
         if (t.group){ const b = document.createElement('span'); b.className='badge'; b.textContent=t.group; head.appendChild(b); }
         if (t.note) head.title = t.note;
         el.appendChild(head);
         t.columns.forEach(c => {
           const row = document.createElement('div');
           row.className = 'col' + (c.pk ? ' pk' : '') + (c.fk ? ' fk' : '');
-          const columnLogical = logicalName(c.note);
           const label = document.createElement('span');
           label.className = 'label cname';
-          const logical = document.createElement('span');
-          logical.className = 'logical';
-          logical.textContent = columnLogical || c.name;
-          label.appendChild(logical);
-          if (columnLogical) {
-            const physical = document.createElement('span');
-            physical.className = 'physical';
-            physical.textContent = c.name;
-            label.appendChild(physical);
-          }
           row.appendChild(label);
+          label.dataset.physical = c.name;
+          label.dataset.logical = logicalName(c.note);
+          const main = document.createElement('span');
+          main.className = 'name-main';
+          label.appendChild(main);
+          const sub = document.createElement('span');
+          sub.className = 'name-sub';
+          label.appendChild(sub);
+          updateNameLabel(label);
           if (c.pk){ const tag=document.createElement('span'); tag.className='tag pk'; tag.textContent='PK'; row.appendChild(tag); }
           if (c.fk){ const tag=document.createElement('span'); tag.className='tag fk'; tag.textContent='FK'; row.appendChild(tag); }
           if (c.unique && !c.pk){ const tag=document.createElement('span'); tag.className='tag u'; tag.textContent='U'; row.appendChild(tag); }
@@ -571,6 +593,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     document.getElementById('zoomOut').addEventListener('click', () => { scale=Math.max(0.12,scale/1.2); applyTransform(); });
     document.getElementById('reload').addEventListener('click', () => vscode.postMessage({ type:'reload' }));
     document.getElementById('updateLatest').addEventListener('click', () => vscode.postMessage({ type:'installLatestRelease' }));
+    document.getElementById('nameMode').addEventListener('change', (e) => updateNameMode(e.target.value));
 
     // ---- init ----
     if (DATA.parseError){
