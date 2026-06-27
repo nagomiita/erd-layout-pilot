@@ -101,12 +101,12 @@
           "group": "navigation@1"
         },
         {
-          "command": "erd-layout.autoLayout",
+          "command": "erd-layout.installLatestRelease",
           "when": "resourceLangId == dbml",
           "group": "navigation@2"
         },
         {
-          "command": "erd-layout.installLatestRelease",
+          "command": "erd-layout.autoLayout",
           "when": "resourceLangId == dbml",
           "group": "navigation@3"
         }
