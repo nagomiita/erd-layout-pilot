@@ -11,9 +11,12 @@ import {
 } from './io/dbdiagramStore';
 import { arrangeGroupGrid, moveGroup, packAllGroups } from './layout/groupOps';
 import { cleanupInvalidReferencePaths, validateDbdiagram } from './layout/validate';
+import { buildDiagramData } from './dbml/parser';
+import { renderDiagramHtml } from './webview/diagramView';
 import type { DbdiagramFile } from './model/types';
 
 let layoutPreviewPanel: vscode.WebviewPanel | undefined;
+let diagramPanel: vscode.WebviewPanel | undefined;
 
 function escapeHtml(input: string): string {
   return input
@@ -109,6 +112,91 @@ function createLayoutPreviewHtml(payload: DbdiagramFile, title: string): string 
   </div>
 </body>
 </html>`;
+}
+
+type IncomingPosition = { name: string; schema?: string; x: number; y: number };
+
+function upsertPosition(payload: DbdiagramFile, pos: IncomingPosition): void {
+  const schemaName = pos.schema && pos.schema !== 'public' ? pos.schema : undefined;
+  const positions = payload.defaultView.tablePositions;
+  const existing = positions.find(
+    (p) => p.name === pos.name && (p.schemaName ?? undefined) === (schemaName ?? p.schemaName),
+  );
+  if (existing) {
+    existing.x = pos.x;
+    existing.y = pos.y;
+    return;
+  }
+  positions.push({ name: pos.name, schemaName: schemaName ?? 'public', x: pos.x, y: pos.y });
+}
+
+async function persistPositions(positions: IncomingPosition[]): Promise<void> {
+  const settings = getSettings();
+  const filePath = resolveLayoutPath(settings);
+  const payload = await readDbdiagram(filePath);
+  for (const pos of positions) {
+    upsertPosition(payload, pos);
+  }
+  await writeDbdiagram(filePath, payload);
+}
+
+async function renderDiagram(): Promise<void> {
+  if (!diagramPanel) {
+    return;
+  }
+  const settings = getSettings();
+  const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+  const layoutPath = resolveLayoutPath(settings);
+  let layout: DbdiagramFile;
+  try {
+    layout = await readDbdiagram(layoutPath);
+  } catch {
+    layout = { version: '2.0.0', defaultView: { tablePositions: [] } };
+  }
+  const data = await buildDiagramData(dbmlPath, layout);
+  const title = path.relative(getWorkspaceRoot(), dbmlPath);
+  diagramPanel.webview.html = renderDiagramHtml(data, { title, dbmlRelPath: title });
+}
+
+async function openDiagram(uri?: vscode.Uri): Promise<void> {
+  if (uri && uri.fsPath.endsWith('.dbml')) {
+    const config = vscode.workspace.getConfiguration('erdLayout');
+    const rel = path.relative(getWorkspaceRoot(), uri.fsPath);
+    if (rel && !rel.startsWith('..')) {
+      await config.update('dbmlPath', rel, vscode.ConfigurationTarget.Workspace);
+    }
+  }
+
+  if (!diagramPanel) {
+    diagramPanel = vscode.window.createWebviewPanel(
+      'erdLayout.diagram',
+      'ERD Diagram',
+      vscode.ViewColumn.Beside,
+      { enableScripts: true, retainContextWhenHidden: true },
+    );
+    diagramPanel.onDidDispose(() => {
+      diagramPanel = undefined;
+    });
+    diagramPanel.webview.onDidReceiveMessage(async (message: { type?: string }) => {
+      try {
+        if (message.type === 'moveTable') {
+          await persistPositions([message as unknown as IncomingPosition]);
+        } else if (message.type === 'moveTables') {
+          const positions = (message as unknown as { positions: IncomingPosition[] }).positions;
+          await persistPositions(positions);
+        } else if (message.type === 'reload') {
+          await renderDiagram();
+        }
+      } catch (error) {
+        const text = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`ERD Diagram: ${text}`);
+      }
+    });
+  } else {
+    diagramPanel.reveal(vscode.ViewColumn.Beside, true);
+  }
+
+  await renderDiagram();
 }
 
 async function renderLayoutPreview(): Promise<void> {
@@ -361,15 +449,39 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(async (document) => {
       const settings = getSettings();
+      const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+      const isDbml = path.normalize(document.uri.fsPath) === path.normalize(dbmlPath);
+
+      if (isDbml) {
+        try {
+          await renderDiagram();
+        } catch {
+          // Non-blocking.
+        }
+        return;
+      }
+
       if (!isLayoutDocument(document, settings)) {
         return;
       }
 
       try {
         await renderLayoutPreview();
+        await renderDiagram();
         await refreshDbmlAfterLayoutChange(settings);
       } catch {
         // Non-blocking: save should still succeed even if preview cannot be refreshed.
+      }
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('erd-layout.openDiagram', async (uri?: vscode.Uri) => {
+      try {
+        await openDiagram(uri);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`ERD Diagram: ${message}`);
       }
     }),
   );

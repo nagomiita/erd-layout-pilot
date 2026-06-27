@@ -2,7 +2,7 @@
   "name": "erd-layout-pilot",
   "displayName": "ERD Layout Pilot",
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "nagomiita-local",
   "repository": {
     "type": "git",
@@ -16,6 +16,8 @@
     "Visualization"
   ],
   "activationEvents": [
+    "onLanguage:dbml",
+    "onCommand:erd-layout.openDiagram",
     "onCommand:erd-layout.openConfig",
     "onCommand:erd-layout.openLayoutPreview",
     "onCommand:erd-layout.openDbmlPreview",
@@ -27,7 +29,25 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "dbml",
+        "aliases": [
+          "DBML",
+          "dbml",
+          "Database Markup Language"
+        ],
+        "extensions": [
+          ".dbml"
+        ]
+      }
+    ],
     "commands": [
+      {
+        "command": "erd-layout.openDiagram",
+        "title": "ERD: Open Diagram",
+        "icon": "$(type-hierarchy)"
+      },
       {
         "command": "erd-layout.openConfig",
         "title": "ERD Layout: Open Config"
@@ -61,6 +81,29 @@
         "title": "ERD Layout: Apply Instruction"
       }
     ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "erd-layout.openDiagram",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "erd-layout.openDiagram",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "erd-layout.openDiagram",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@1"
+        }
+      ]
+    },
     "configuration": {
       "title": "ERD Layout",
       "properties": {
@@ -118,9 +161,12 @@
     "release:local": "bash scripts/release-local.sh"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.6.1",
     "@types/node": "^22.10.0",
     "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.6.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@dbml/core": "^3.14.1"
   }
 }

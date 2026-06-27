@@ -71,3 +71,50 @@ export type InstructionPayload = {
     cleanupReferencePaths?: boolean;
   };
 };
+
+// --- Diagram model (parsed from .dbml, positioned by .dbdiagram) ---
+
+export type DiagramColumn = {
+  name: string;
+  type: string;
+  pk: boolean;
+  fk: boolean;
+  notNull: boolean;
+  unique: boolean;
+  note?: string;
+};
+
+export type DiagramTable = {
+  id: string;
+  name: string;
+  schema: string;
+  note?: string;
+  headerColor?: string;
+  group?: string;
+  columns: DiagramColumn[];
+  x: number;
+  y: number;
+  positioned: boolean;
+};
+
+export type DiagramRef = {
+  fromTable: string;
+  fromColumn: string;
+  toTable: string;
+  toColumn: string;
+  onDelete?: string;
+};
+
+export type DiagramGroup = {
+  name: string;
+  color?: string;
+  tables: string[];
+};
+
+export type DiagramData = {
+  tables: DiagramTable[];
+  refs: DiagramRef[];
+  groups: DiagramGroup[];
+  staleTables: string[];
+  parseError?: string;
+};

@@ -1,10 +1,28 @@
 # ERD Layout Pilot (MVP)
 
-This extension edits ERD layout JSON files (for example, `.dbdiagram`) in a command-driven way.
+This extension renders an interactive ER diagram from a `.dbml` file and lets you
+edit the layout (table positions) stored in a `.dbdiagram` sidecar file.
 It is designed for AI-assisted layout operations on large ERDs.
+
+## ER Diagram
+
+Open any `.dbml` file and click the **ERD: Open Diagram** button in the editor
+title bar (or right-click the file in the Explorer). The diagram is parsed from
+the `.dbml` with [`@dbml/core`](https://www.npmjs.com/package/@dbml/core) and shows:
+
+- Tables with columns, types, and PK / FK / unique badges
+- Relationship edges between columns (solid = `cascade`, dashed = `set null`)
+- TableGroup backgrounds and labels
+- Pan / zoom / fit, drag-to-reposition (saved to `.dbdiagram`), and auto-arrange
+  (Grid / Horizontal / Vertical / Circular)
+
+Table positions are read from and written back to the `.dbdiagram` file
+(`erdLayout.filePath`). Saving either the `.dbml` or `.dbdiagram` re-renders the
+open diagram.
 
 ## Commands
 
+- ERD: Open Diagram
 - ERD Layout: Open Config
 - ERD Layout: Open Layout Preview
 - ERD Layout: Open DBML Preview
