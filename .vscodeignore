@@ -3,3 +3,6 @@ src/**
 **/*.ts
 **/*.map
 node_modules/**/.bin/**
+.github/**
+scripts/**
+.gitignore
