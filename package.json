@@ -99,16 +99,6 @@
           "command": "erd-layout.openDiagram",
           "when": "resourceLangId == dbml",
           "group": "navigation@1"
-        },
-        {
-          "command": "erd-layout.installLatestRelease",
-          "when": "resourceLangId == dbml",
-          "group": "navigation@2"
-        },
-        {
-          "command": "erd-layout.autoLayout",
-          "when": "resourceLangId == dbml",
-          "group": "navigation@3"
         }
       ],
       "explorer/context": [

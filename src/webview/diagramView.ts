@@ -145,18 +145,18 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 <body>
   <div id="toolbar">
     <span class="title">ERD: ${title}</span>
-    <select id="algo" title="Auto arrange algorithm">
-      <option value="grouped">Grouped (FK-aware)</option>
-      <option value="grid">Grid</option>
-      <option value="horizontal">Horizontal</option>
-      <option value="vertical">Vertical</option>
-      <option value="circular">Circular</option>
+    <select id="algo" title="自動配置アルゴリズム">
+      <option value="grouped">グループ (FK考慮)</option>
+      <option value="grid">グリッド</option>
+      <option value="horizontal">横並び</option>
+      <option value="vertical">縦並び</option>
+      <option value="circular">円形</option>
     </select>
-    <button id="arrange">Auto arrange</button>
-    <button id="fit">Fit</button>
-    <button id="zoomIn">+</button>
-    <button id="zoomOut">−</button>
-    <button id="reload">Reload</button>
+    <button id="arrange">自動配置</button>
+    <button id="fit">全体表示</button>
+    <button id="zoomIn" title="拡大">+</button>
+    <button id="zoomOut" title="縮小">−</button>
+    <button id="reload">再読み込み</button>
     <button id="updateLatest" title="最新リリースへ更新">更新</button>
   </div>
   <div id="banner"></div>
