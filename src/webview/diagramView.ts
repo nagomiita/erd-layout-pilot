@@ -126,12 +126,22 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     padding: 0 10px; font-weight: 700; font-size: 13px; cursor: grab;
     background: #1f6feb22; border-bottom: 1px solid var(--border);
   }
+  .label {
+    min-width: 0; display: flex; align-items: baseline; gap: 6px; line-height: 1.2;
+    overflow: hidden;
+  }
+  .logical,
+  .physical {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .logical { font-weight: 700; }
+  .physical { color: var(--muted); font-size: 10px; font-weight: 500; }
   .card-head .badge { margin-left: auto; font-size: 10px; color: var(--muted); font-weight: 500; }
   .col {
     height: ${ROW_HEIGHT}px; display: flex; align-items: center; gap: 6px;
     padding: 0 10px; font-size: 11px; border-top: 1px solid #21262d;
   }
-  .col .cname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col .cname { flex: 1; }
   .col .ctype { margin-left: auto; color: var(--muted); font-size: 10px; white-space: nowrap; }
   .col.pk .cname { color: #ffd479; font-weight: 600; }
   .col.fk .cname { color: #79c0ff; }
@@ -199,6 +209,9 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     const tableById = new Map(DATA.tables.map(t => [t.id, t]));
     function cardHeight(t){ return C.HEADER_HEIGHT + t.columns.length * C.ROW_HEIGHT + C.CARD_PADDING; }
+    function logicalName(note){
+      return (note || '').split('\\n').map(s => s.trim()).find(Boolean) || '';
+    }
 
     let scale = 1, tx = 0, ty = 0;
     function applyTransform(){
@@ -227,17 +240,40 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         head.className = 'card-head';
         head.style.background = hexA(accent, 0.18);
         head.style.borderBottom = '1px solid ' + hexA(accent, 0.55);
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = t.name;
-        head.appendChild(nameSpan);
+        const tableLogical = logicalName(t.note);
+        const label = document.createElement('span');
+        label.className = 'label';
+        const logical = document.createElement('span');
+        logical.className = 'logical';
+        logical.textContent = tableLogical || t.name;
+        label.appendChild(logical);
+        if (tableLogical) {
+          const physical = document.createElement('span');
+          physical.className = 'physical';
+          physical.textContent = t.name;
+          label.appendChild(physical);
+        }
+        head.appendChild(label);
         if (t.group){ const b = document.createElement('span'); b.className='badge'; b.textContent=t.group; head.appendChild(b); }
         if (t.note) head.title = t.note;
         el.appendChild(head);
         t.columns.forEach(c => {
           const row = document.createElement('div');
           row.className = 'col' + (c.pk ? ' pk' : '') + (c.fk ? ' fk' : '');
-          const cn = document.createElement('span'); cn.className='cname'; cn.textContent = c.name;
-          row.appendChild(cn);
+          const columnLogical = logicalName(c.note);
+          const label = document.createElement('span');
+          label.className = 'label cname';
+          const logical = document.createElement('span');
+          logical.className = 'logical';
+          logical.textContent = columnLogical || c.name;
+          label.appendChild(logical);
+          if (columnLogical) {
+            const physical = document.createElement('span');
+            physical.className = 'physical';
+            physical.textContent = c.name;
+            label.appendChild(physical);
+          }
+          row.appendChild(label);
           if (c.pk){ const tag=document.createElement('span'); tag.className='tag pk'; tag.textContent='PK'; row.appendChild(tag); }
           if (c.fk){ const tag=document.createElement('span'); tag.className='tag fk'; tag.textContent='FK'; row.appendChild(tag); }
           if (c.unique && !c.pk){ const tag=document.createElement('span'); tag.className='tag u'; tag.textContent='U'; row.appendChild(tag); }
