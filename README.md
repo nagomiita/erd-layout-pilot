@@ -1,0 +1,40 @@
+# ERD Layout Pilot (MVP)
+
+This extension edits ERD layout JSON files (for example, `.dbdiagram`) in a command-driven way.
+It is designed for AI-assisted layout operations on large ERDs.
+
+## Commands
+
+- ERD Layout: Open Config
+- ERD Layout: Validate Layout JSON
+- ERD Layout: Move Group
+- ERD Layout: Arrange Group Grid
+- ERD Layout: Pack All Groups
+- ERD Layout: Apply Instruction
+
+## Settings
+
+- `erdLayout.filePath`
+- `erdLayout.defaultGapX`
+- `erdLayout.defaultGapY`
+- `erdLayout.pinnedTables`
+- `erdLayout.cleanupReferencePathsOnApply`
+
+## Dev
+
+```bash
+cd tools/erd-layout-vscode-extension
+npm install
+npm run build
+```
+
+Press F5 in VS Code from this extension folder to launch Extension Development Host.
+
+## Separate Repository Operation
+
+This extension can be managed in a repository independent from Eagle.
+
+- Keep this folder as the repository root in a new GitHub repository.
+- Preserve command IDs (`erd-layout.*`) to keep user settings compatible.
+- Configure CI with `.github/workflows/ci.yml`.
+- Configure VSIX release with `.github/workflows/release-vsix.yml`.

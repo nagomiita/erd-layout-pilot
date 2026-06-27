@@ -1,0 +1,96 @@
+{
+  "name": "erd-layout-pilot",
+  "displayName": "ERD Layout Pilot",
+  "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
+  "version": "0.0.1",
+  "publisher": "nagomiita-local",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onCommand:erd-layout.openConfig",
+    "onCommand:erd-layout.validate",
+    "onCommand:erd-layout.moveGroup",
+    "onCommand:erd-layout.arrangeGroupGrid",
+    "onCommand:erd-layout.packAll",
+    "onCommand:erd-layout.applyInstruction"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "erd-layout.openConfig",
+        "title": "ERD Layout: Open Config"
+      },
+      {
+        "command": "erd-layout.validate",
+        "title": "ERD Layout: Validate Layout JSON"
+      },
+      {
+        "command": "erd-layout.moveGroup",
+        "title": "ERD Layout: Move Group"
+      },
+      {
+        "command": "erd-layout.arrangeGroupGrid",
+        "title": "ERD Layout: Arrange Group Grid"
+      },
+      {
+        "command": "erd-layout.packAll",
+        "title": "ERD Layout: Pack All Groups"
+      },
+      {
+        "command": "erd-layout.applyInstruction",
+        "title": "ERD Layout: Apply Instruction"
+      }
+    ],
+    "configuration": {
+      "title": "ERD Layout",
+      "properties": {
+        "erdLayout.filePath": {
+          "type": "string",
+          "default": "backend/tenant/autogen/db/erd.dbdiagram",
+          "description": "Relative path to the ERD layout JSON file."
+        },
+        "erdLayout.defaultGapX": {
+          "type": "number",
+          "default": 220,
+          "description": "Default horizontal gap for grid arrangement."
+        },
+        "erdLayout.defaultGapY": {
+          "type": "number",
+          "default": 140,
+          "description": "Default vertical gap for grid arrangement."
+        },
+        "erdLayout.pinnedTables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Table names that should not be moved automatically."
+        },
+        "erdLayout.cleanupReferencePathsOnApply": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cleanup invalid reference paths after applyInstruction."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "check": "tsc -p ./ --noEmit",
+    "package:vsix": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.1",
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.9.3"
+  }
+}
