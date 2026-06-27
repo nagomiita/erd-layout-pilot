@@ -37,6 +37,7 @@ export type LayoutSettings = {
   cleanupReferencePathsOnApply: boolean;
   autoOpenDbmlPreviewOnLayoutSave: boolean;
   refreshDbmlPreviewByTouch: boolean;
+  autoCleanupStaleTables: boolean;
 };
 
 export type ValidationResult = {

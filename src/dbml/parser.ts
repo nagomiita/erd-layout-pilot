@@ -169,6 +169,46 @@ function positionKey(name: string, schemaName?: string): string {
   return schemaName && schemaName !== 'public' ? `${schemaName}.${name}` : name;
 }
 
+/**
+ * Remove table positions / referencePaths / tableGroup memberships that refer to
+ * tables which no longer exist in the given .dbml. Returns the number of removed
+ * table positions. Mutates `layout` in place.
+ */
+export async function removeStaleTables(
+  dbmlPath: string,
+  layout: DbdiagramFile,
+): Promise<number> {
+  const source = await fs.readFile(dbmlPath, 'utf8');
+  const parsed = parseDbmlString(source);
+  const knownIds = new Set(parsed.tables.map((t) => t.id));
+  const knownNames = new Set(parsed.tables.map((t) => t.name));
+
+  const view = layout.defaultView;
+  const before = view.tablePositions.length;
+  view.tablePositions = view.tablePositions.filter((p) =>
+    knownIds.has(positionKey(p.name, p.schemaName)),
+  );
+  const removed = before - view.tablePositions.length;
+
+  if (Array.isArray(view.referencePaths)) {
+    view.referencePaths = view.referencePaths.filter(
+      (r) => knownNames.has(r.firstTableName) && knownNames.has(r.secondTableName),
+    );
+  }
+
+  if (Array.isArray(layout.tableGroups)) {
+    for (const group of layout.tableGroups) {
+      if (Array.isArray(group.tables)) {
+        group.tables = group.tables.filter(
+          (name) => knownIds.has(name) || knownNames.has(name),
+        );
+      }
+    }
+  }
+
+  return removed;
+}
+
 export async function buildDiagramData(
   dbmlPath: string,
   layout: DbdiagramFile,

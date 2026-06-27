@@ -27,6 +27,7 @@ export function getSettings(): LayoutSettings {
       true,
     ),
     refreshDbmlPreviewByTouch: config.get<boolean>('refreshDbmlPreviewByTouch', true),
+    autoCleanupStaleTables: config.get<boolean>('autoCleanupStaleTables', false),
   };
 }
 

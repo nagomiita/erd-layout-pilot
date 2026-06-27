@@ -81,7 +81,14 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     position: fixed; top: 44px; left: 0; right: 0; z-index: 15;
     background: #4d2222; color: #ffb4b4; padding: 8px 12px; font-size: 12px;
     border-bottom: 1px solid #6e3030; display: none;
+    align-items: center; gap: 10px;
   }
+  #banner .msg { flex: 1; }
+  #banner button {
+    background: #6e3030; color: #ffd9d9; border: 1px solid #8a4040;
+    border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; white-space: nowrap;
+  }
+  #banner button:hover { background: #8a4040; }
   #stage {
     position: absolute; inset: 44px 0 0 0; overflow: hidden; cursor: grab;
     background-image:
@@ -379,8 +386,15 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       const empty = document.createElement('div'); empty.id='empty'; empty.textContent='No tables found in .dbml'; document.body.appendChild(empty);
     } else {
       if (DATA.staleTables && DATA.staleTables.length){
-        banner.style.display='block';
-        banner.textContent = 'Layout has ' + DATA.staleTables.length + ' stale table(s) not in current .dbml: ' + DATA.staleTables.join(', ');
+        banner.style.display='flex';
+        const msg = document.createElement('span');
+        msg.className = 'msg';
+        msg.textContent = 'Layout has ' + DATA.staleTables.length + ' stale table(s) not in current .dbml: ' + DATA.staleTables.join(', ');
+        const btn = document.createElement('button');
+        btn.textContent = 'Clean up';
+        btn.addEventListener('click', () => vscode.postMessage({ type: 'cleanupStale' }));
+        banner.appendChild(msg);
+        banner.appendChild(btn);
       }
       buildCards();
       redraw();

@@ -11,7 +11,7 @@ import {
 } from './io/dbdiagramStore';
 import { arrangeGroupGrid, moveGroup, packAllGroups } from './layout/groupOps';
 import { cleanupInvalidReferencePaths, validateDbdiagram } from './layout/validate';
-import { buildDiagramData } from './dbml/parser';
+import { buildDiagramData, removeStaleTables } from './dbml/parser';
 import { renderDiagramHtml } from './webview/diagramView';
 import type { DbdiagramFile } from './model/types';
 
@@ -140,6 +140,18 @@ async function persistPositions(positions: IncomingPosition[]): Promise<void> {
   await writeDbdiagram(filePath, payload);
 }
 
+async function cleanupStaleTables(): Promise<number> {
+  const settings = getSettings();
+  const filePath = resolveLayoutPath(settings);
+  const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+  const payload = await readDbdiagram(filePath);
+  const removed = await removeStaleTables(dbmlPath, payload);
+  if (removed > 0) {
+    await writeDbdiagram(filePath, payload);
+  }
+  return removed;
+}
+
 async function renderDiagram(): Promise<void> {
   if (!diagramPanel) {
     return;
@@ -184,6 +196,12 @@ async function openDiagram(uri?: vscode.Uri): Promise<void> {
         } else if (message.type === 'moveTables') {
           const positions = (message as unknown as { positions: IncomingPosition[] }).positions;
           await persistPositions(positions);
+        } else if (message.type === 'cleanupStale') {
+          const removed = await cleanupStaleTables();
+          void vscode.window.showInformationMessage(
+            `ERD Diagram: removed ${removed} stale table(s) from layout.`,
+          );
+          await renderDiagram();
         } else if (message.type === 'reload') {
           await renderDiagram();
         }
@@ -194,6 +212,14 @@ async function openDiagram(uri?: vscode.Uri): Promise<void> {
     });
   } else {
     diagramPanel.reveal(vscode.ViewColumn.Beside, true);
+  }
+
+  if (getSettings().autoCleanupStaleTables) {
+    try {
+      await cleanupStaleTables();
+    } catch {
+      // Non-blocking: still render even if cleanup fails.
+    }
   }
 
   await renderDiagram();

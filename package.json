@@ -2,7 +2,7 @@
   "name": "erd-layout-pilot",
   "displayName": "ERD Layout Pilot",
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "publisher": "nagomiita-local",
   "repository": {
     "type": "git",
@@ -149,6 +149,11 @@
           "type": "boolean",
           "default": true,
           "description": "Trigger DBML preview refresh by re-writing DBML file content when layout changes; falls back to preview reopen if needed."
+        },
+        "erdLayout.autoCleanupStaleTables": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically remove stale table positions (tables no longer present in .dbml) from the layout file when opening the ER diagram."
         }
       }
     }
