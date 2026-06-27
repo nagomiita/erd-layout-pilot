@@ -97,15 +97,23 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   }
   #stage.panning { cursor: grabbing; }
   #viewport { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
-  #edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
-  .grp-label {
-    position: absolute; font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
-    text-transform: uppercase; opacity: 0.85; pointer-events: none;
+  #edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 1; }
+  .group-card {
+    position: absolute; border-radius: 16px; pointer-events: none; z-index: 0;
+    border: 1.5px solid; overflow: hidden;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.18) inset;
   }
+  .group-card .gc-head {
+    height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    border-bottom: 1px solid;
+  }
+  .group-card .gc-count { font-size: 10px; font-weight: 600; opacity: 0.7; letter-spacing: 0; }
   .card {
     position: absolute; width: ${CARD_WIDTH}px; background: var(--panel);
     border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35); user-select: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35); user-select: none; z-index: 2;
   }
   .card.dim { opacity: 0.28; }
   .card-head {
@@ -133,6 +141,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   <div id="toolbar">
     <span class="title">ERD: ${title}</span>
     <select id="algo" title="Auto arrange algorithm">
+      <option value="grouped">Grouped (FK-aware)</option>
       <option value="grid">Grid</option>
       <option value="horizontal">Horizontal</option>
       <option value="vertical">Vertical</option>
@@ -258,31 +267,38 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     }
 
     function drawGroups(){
-      document.querySelectorAll('.grp-rect,.grp-label').forEach(e => e.remove());
+      document.querySelectorAll('.group-card').forEach(e => e.remove());
       DATA.groups.forEach(g => {
         const members = g.tables.map(id => tableById.get(id)).filter(Boolean);
         if(!members.length) return;
-        const pad = 24;
-        const minX = Math.min(...members.map(t=>t.x)) - pad;
-        const minY = Math.min(...members.map(t=>t.y)) - pad - 18;
-        const maxX = Math.max(...members.map(t=>t.x + C.CARD_WIDTH)) + pad;
-        const maxY = Math.max(...members.map(t=>t.y + cardHeight(t))) + pad;
+        const padX = 22, padTop = 44, padBottom = 22;
+        const minX = Math.min(...members.map(t=>t.x)) - padX;
+        const minY = Math.min(...members.map(t=>t.y)) - padTop;
+        const maxX = Math.max(...members.map(t=>t.x + C.CARD_WIDTH)) + padX;
+        const maxY = Math.max(...members.map(t=>t.y + cardHeight(t))) + padBottom;
         const col = groupColor[g.name];
-        const rect = document.createElementNS(SVGNS, 'rect');
-        rect.setAttribute('class','grp-rect');
-        rect.setAttribute('x', minX); rect.setAttribute('y', minY);
-        rect.setAttribute('width', maxX-minX); rect.setAttribute('height', maxY-minY);
-        rect.setAttribute('rx','14'); rect.setAttribute('fill', hexA(col,0.06));
-        rect.setAttribute('stroke', hexA(col,0.4)); rect.setAttribute('stroke-width','1.5');
-        rect.setAttribute('stroke-dasharray','6 6');
-        edges.insertBefore(rect, edges.firstChild);
-        const label = document.createElement('div');
-        label.className = 'grp-label';
-        label.textContent = g.name;
-        label.style.left = (minX + 10) + 'px';
-        label.style.top = (minY + 2) + 'px';
-        label.style.color = col;
-        viewport.appendChild(label);
+        const box = document.createElement('div');
+        box.className = 'group-card';
+        box.style.left = minX + 'px';
+        box.style.top = minY + 'px';
+        box.style.width = (maxX - minX) + 'px';
+        box.style.height = (maxY - minY) + 'px';
+        box.style.background = hexA(col, 0.05);
+        box.style.borderColor = hexA(col, 0.45);
+        const head = document.createElement('div');
+        head.className = 'gc-head';
+        head.style.background = hexA(col, 0.20);
+        head.style.color = col;
+        head.style.borderBottomColor = hexA(col, 0.35);
+        const name = document.createElement('span');
+        name.textContent = g.name;
+        const count = document.createElement('span');
+        count.className = 'gc-count';
+        count.textContent = members.length + ' tables';
+        head.appendChild(name);
+        head.appendChild(count);
+        box.appendChild(head);
+        viewport.insertBefore(box, viewport.firstChild);
       });
     }
 
@@ -352,6 +368,10 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     // ---- auto arrange ----
     function arrange(algo){
+      if (algo === 'grouped'){
+        vscode.postMessage({ type:'autoLayout' });
+        return;
+      }
       const list = DATA.tables;
       const gapX = C.CARD_WIDTH + 80;
       if (algo === 'grid'){
