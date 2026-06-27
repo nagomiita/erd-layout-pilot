@@ -6,6 +6,7 @@ It is designed for AI-assisted layout operations on large ERDs.
 ## Commands
 
 - ERD Layout: Open Config
+- ERD Layout: Open Layout Preview
 - ERD Layout: Open DBML Preview
 - ERD Layout: Validate Layout JSON
 - ERD Layout: Move Group
@@ -31,6 +32,9 @@ the layout file is saved.
 When `erdLayout.refreshDbmlPreviewByTouch` is enabled (default: true),
 the extension first tries to refresh DBML preview in place by touching the DBML
 file, then falls back to preview reopen if touch-based refresh fails.
+
+`ERD Layout: Open Layout Preview` renders table positions directly from
+`.dbdiagram` and refreshes the same panel when layout changes are saved.
 
 ## Dev
 
