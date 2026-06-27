@@ -47,49 +47,49 @@
     "commands": [
       {
         "command": "erd-layout.openDiagram",
-        "title": "ERD: Open Diagram",
+        "title": "ERD: 図を開く",
         "icon": "$(type-hierarchy)"
       },
       {
         "command": "erd-layout.autoLayout",
-        "title": "ERD: Auto Layout (grouped)",
+        "title": "ERD: 自動配置 (グループ)",
         "icon": "$(layout)"
       },
       {
         "command": "erd-layout.openConfig",
-        "title": "ERD Layout: Open Config"
+        "title": "ERD Layout: 設定を開く"
       },
       {
         "command": "erd-layout.openLayoutPreview",
-        "title": "ERD Layout: Open Layout Preview"
+        "title": "ERD Layout: レイアウトプレビューを開く"
       },
       {
         "command": "erd-layout.openDbmlPreview",
-        "title": "ERD Layout: Open DBML Preview"
+        "title": "ERD Layout: DBMLプレビューを開く"
       },
       {
         "command": "erd-layout.validate",
-        "title": "ERD Layout: Validate Layout JSON"
+        "title": "ERD Layout: レイアウトJSONを検証"
       },
       {
         "command": "erd-layout.moveGroup",
-        "title": "ERD Layout: Move Group"
+        "title": "ERD Layout: グループを移動"
       },
       {
         "command": "erd-layout.arrangeGroupGrid",
-        "title": "ERD Layout: Arrange Group Grid"
+        "title": "ERD Layout: グループをグリッド配置"
       },
       {
         "command": "erd-layout.packAll",
-        "title": "ERD Layout: Pack All Groups"
+        "title": "ERD Layout: 全グループを詰める"
       },
       {
         "command": "erd-layout.applyInstruction",
-        "title": "ERD Layout: Apply Instruction"
+        "title": "ERD Layout: 指示を適用"
       },
       {
         "command": "erd-layout.installLatestRelease",
-        "title": "ERD Layout: Install Latest Release",
+        "title": "ERD Layout: 最新リリースへ更新",
         "icon": "$(cloud-download)"
       }
     ],

@@ -6,7 +6,7 @@ It is designed for AI-assisted layout operations on large ERDs.
 
 ## ER Diagram
 
-Open any `.dbml` file and click the **ERD: Open Diagram** button in the editor
+Open any `.dbml` file and click the **ERD: 図を開く** button in the editor
 title bar (or right-click the file in the Explorer). The diagram is parsed from
 the `.dbml` with [`@dbml/core`](https://www.npmjs.com/package/@dbml/core) and shows:
 
@@ -22,21 +22,21 @@ open diagram.
 
 ## Commands
 
-- ERD: Open Diagram
-- ERD: Auto Layout (grouped)
-- ERD Layout: Open Config
-- ERD Layout: Open Layout Preview
-- ERD Layout: Open DBML Preview
-- ERD Layout: Validate Layout JSON
-- ERD Layout: Move Group
-- ERD Layout: Arrange Group Grid
-- ERD Layout: Pack All Groups
-- ERD Layout: Apply Instruction
-- ERD Layout: Install Latest Release
+- ERD: 図を開く
+- ERD: 自動配置 (グループ)
+- ERD Layout: 設定を開く
+- ERD Layout: レイアウトプレビューを開く
+- ERD Layout: DBMLプレビューを開く
+- ERD Layout: レイアウトJSONを検証
+- ERD Layout: グループを移動
+- ERD Layout: グループをグリッド配置
+- ERD Layout: 全グループを詰める
+- ERD Layout: 指示を適用
+- ERD Layout: 最新リリースへ更新
 
 ## Auto Layout (grouped, FK-aware)
 
-`ERD: Auto Layout (grouped)` (title-bar button, command palette, or the
+`ERD: 自動配置 (グループ)` (title-bar button, command palette, or the
 "Grouped (FK-aware)" option of the diagram's **Auto arrange**) computes a
 deterministic layout from the parsed `.dbml` and writes it to `.dbdiagram`.
 The algorithm is intentionally simple and reproducible:
@@ -81,7 +81,7 @@ When `erdLayout.refreshDbmlPreviewByTouch` is enabled (default: true),
 the extension first tries to refresh DBML preview in place by touching the DBML
 file, then falls back to preview reopen if touch-based refresh fails.
 
-`ERD Layout: Open Layout Preview` renders table positions directly from
+`ERD Layout: レイアウトプレビューを開く` renders table positions directly from
 `.dbdiagram` and refreshes the same panel when layout changes are saved.
 
 ## Dev
@@ -103,7 +103,7 @@ This extension can be managed in a repository independent from Eagle.
 - Configure CI with `.github/workflows/ci.yml`.
 - Configure VSIX release with `.github/workflows/release-vsix.yml`.
 
-`ERD Layout: Install Latest Release` downloads the newest GitHub Release VSIX for this repository and installs it in the current VS Code session.
+`ERD Layout: 最新リリースへ更新` downloads the newest GitHub Release VSIX for this repository and installs it in the current VS Code session.
 
 ## Local Release (No Actions Required)
 
