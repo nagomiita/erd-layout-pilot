@@ -73,6 +73,14 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
   }
   #toolbar button:hover { background: #30363d; }
+  #toolbar button.toggle {
+    min-width: 64px;
+  }
+  #toolbar button.toggle.active {
+    border-color: var(--accent);
+    color: #d8ecff;
+    background: #1f6feb33;
+  }
   #toolbar select {
     background: #21262d; color: var(--text); border: 1px solid var(--border);
     border-radius: 6px; padding: 5px 8px; font-size: 12px;
@@ -183,10 +191,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     <button id="zoomOut" title="縮小">−</button>
     <button id="reload">再読み込み</button>
     <button id="updateLatest" title="最新リリースへ更新">更新</button>
-    <select id="nameMode" title="表示名">
-      <option value="physical">物理名</option>
-      <option value="logical">論理名</option>
-    </select>
+    <button id="nameModeToggle" class="toggle" title="表示名を切り替え">物理名</button>
   </div>
   <div id="banner"></div>
   <div id="stage">
@@ -256,10 +261,14 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       main.textContent = nameMode === 'logical' && hasLogical ? logical : physical;
       sub.textContent = nameMode === 'logical' && hasLogical ? physical : (hasLogical ? logical : '');
       sub.style.display = sub.textContent ? '' : 'none';
+      label.title = hasLogical ? '物理名: ' + physical + '\\n論理名: ' + logical : '物理名: ' + physical;
     }
 
     function updateNameMode(mode){
       nameMode = mode;
+      const toggle = document.getElementById('nameModeToggle');
+      toggle.textContent = nameMode === 'logical' ? '論理名' : '物理名';
+      toggle.classList.toggle('active', nameMode === 'logical');
       document.querySelectorAll('.label').forEach(updateNameLabel);
       scheduleMagnifier();
     }
@@ -593,7 +602,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     document.getElementById('zoomOut').addEventListener('click', () => { scale=Math.max(0.12,scale/1.2); applyTransform(); });
     document.getElementById('reload').addEventListener('click', () => vscode.postMessage({ type:'reload' }));
     document.getElementById('updateLatest').addEventListener('click', () => vscode.postMessage({ type:'installLatestRelease' }));
-    document.getElementById('nameMode').addEventListener('change', (e) => updateNameMode(e.target.value));
+    document.getElementById('nameModeToggle').addEventListener('click', () => updateNameMode(nameMode === 'logical' ? 'physical' : 'logical'));
 
     // ---- init ----
     if (DATA.parseError){
