@@ -443,6 +443,23 @@ function isLayoutDocument(document: vscode.TextDocument, settings = getSettings(
   return path.normalize(document.uri.fsPath) === path.normalize(layoutPath);
 }
 
+function isDbmlDocument(document: vscode.TextDocument): boolean {
+  return document.languageId === 'dbml' || document.uri.fsPath.endsWith('.dbml');
+}
+
+async function openDiagramForDbmlEditor(
+  context: vscode.ExtensionContext,
+  editor: vscode.TextEditor | undefined,
+): Promise<void> {
+  if (!editor || !isDbmlDocument(editor.document)) {
+    return;
+  }
+  if (diagramPanel && activeDbmlPath === path.relative(getWorkspaceRoot(), editor.document.uri.fsPath)) {
+    return;
+  }
+  await openDiagram(context, editor.document.uri);
+}
+
 async function openConfig(): Promise<void> {
   const settings = getSettings();
   const target = vscode.Uri.file(resolveLayoutPath(settings));
@@ -610,6 +627,19 @@ function register(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  void openDiagramForDbmlEditor(context, vscode.window.activeTextEditor).catch(() => {
+    // Non-blocking: activation should still succeed even if auto-open fails.
+  });
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      void openDiagramForDbmlEditor(context, editor).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`ERD Diagram: ${message}`);
+      });
+    }),
+  );
+
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(async (document) => {
       const settings = getSettings();
