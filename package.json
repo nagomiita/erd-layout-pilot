@@ -89,7 +89,8 @@
       },
       {
         "command": "erd-layout.installLatestRelease",
-        "title": "ERD Layout: Install Latest Release"
+        "title": "ERD Layout: Install Latest Release",
+        "icon": "$(cloud-download)"
       }
     ],
     "menus": {
@@ -103,6 +104,11 @@
           "command": "erd-layout.autoLayout",
           "when": "resourceLangId == dbml",
           "group": "navigation@2"
+        },
+        {
+          "command": "erd-layout.installLatestRelease",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@3"
         }
       ],
       "explorer/context": [
@@ -110,6 +116,11 @@
           "command": "erd-layout.openDiagram",
           "when": "resourceLangId == dbml",
           "group": "navigation@1"
+        },
+        {
+          "command": "erd-layout.installLatestRelease",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@2"
         }
       ],
       "editor/context": [
@@ -117,6 +128,11 @@
           "command": "erd-layout.openDiagram",
           "when": "resourceLangId == dbml",
           "group": "navigation@1"
+        },
+        {
+          "command": "erd-layout.installLatestRelease",
+          "when": "resourceLangId == dbml",
+          "group": "navigation@2"
         }
       ]
     },
