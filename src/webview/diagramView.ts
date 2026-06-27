@@ -235,6 +235,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     const cardEls = new Map();
     let activeHighlightId = null;
+    let activeEdgeHighlight = false;
     let dragTableId = null;
     let nameMode = 'physical';
 
@@ -442,6 +443,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     function highlightTables(tableIds){
       activeHighlightId = null;
+      activeEdgeHighlight = true;
       const active = new Set(tableIds);
       document.querySelectorAll('.card').forEach(c => {
         const id = c.dataset.id;
@@ -495,6 +497,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     function highlightTable(tableId){
       activeHighlightId = tableId;
+      activeEdgeHighlight = false;
       const related = relatedTableIds(tableId);
       document.querySelectorAll('.card').forEach(c => {
         const id = c.dataset.id;
@@ -507,6 +510,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     function clearHighlight(){
       activeHighlightId = null;
+      activeEdgeHighlight = false;
       document.querySelectorAll('.card').forEach(c => {
         c.classList.remove('active');
         c.classList.remove('dim');
@@ -604,6 +608,9 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     // ---- pan & zoom ----
     stage.addEventListener('mousemove', (e) => {
       setMagnifierFromClient(e.clientX, e.clientY);
+      if (activeEdgeHighlight && !e.target.closest('.edge-hit') && !e.target.closest('.card')) {
+        clearHighlight();
+      }
     });
     stage.addEventListener('mousedown', (e) => {
       if (e.target.closest('.card')) return;
