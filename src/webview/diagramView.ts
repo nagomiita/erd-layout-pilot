@@ -106,6 +106,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   #stage.panning { cursor: grabbing; }
   #viewport { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
   #edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 1; }
+  #edges .edge-hit { pointer-events: stroke; cursor: pointer; }
   .group-card {
     position: absolute; border-radius: 16px; pointer-events: none; z-index: 0;
     border: 1.5px solid; overflow: hidden;
@@ -348,8 +349,9 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         const dx = Math.max(40, Math.abs(bx-ax) * 0.4);
         const c1x = ax + (aRight ? dx : -dx);
         const c2x = bx + (bLeftSide ? -dx : dx);
+        const d = 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by;
         const path = document.createElementNS(SVGNS, 'path');
-        path.setAttribute('d', 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by);
+        path.setAttribute('d', d);
         const isCascade = (r.onDelete || '').toLowerCase() === 'cascade';
         const active = highlightId && (r.fromTable === highlightId || r.toTable === highlightId);
         path.setAttribute('stroke', active ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
@@ -358,6 +360,18 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         if(!isCascade) path.setAttribute('stroke-dasharray', '5 4');
         path.setAttribute('opacity', highlightId && !active ? '0.15' : '0.85');
         edges.appendChild(path);
+        const hit = document.createElementNS(SVGNS, 'path');
+        hit.classList.add('edge-hit');
+        hit.setAttribute('d', d);
+        hit.setAttribute('stroke', 'transparent');
+        hit.setAttribute('stroke-width', '12');
+        hit.setAttribute('fill', 'none');
+        hit.addEventListener('mouseenter', () => highlightTables([r.fromTable, r.toTable]));
+        hit.addEventListener('mouseleave', () => {
+          if (dragTableId) return;
+          clearHighlight();
+        });
+        edges.appendChild(hit);
         // FK crow-foot dot at child side
         const dot = document.createElementNS(SVGNS, 'circle');
         dot.setAttribute('cx', ax); dot.setAttribute('cy', ay); dot.setAttribute('r', '3');
@@ -424,6 +438,59 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         if (r.toTable === tableId) related.add(r.fromTable);
       });
       return related;
+    }
+
+    function highlightTables(tableIds){
+      activeHighlightId = null;
+      const active = new Set(tableIds);
+      document.querySelectorAll('.card').forEach(c => {
+        const id = c.dataset.id;
+        c.classList.toggle('active', active.has(id));
+        c.classList.toggle('dim', !active.has(id));
+      });
+      while (edges.firstChild) edges.removeChild(edges.firstChild);
+      DATA.refs.forEach(r => {
+        const edgeActive = active.has(r.fromTable) && active.has(r.toTable);
+        const a = tableById.get(r.fromTable), b = tableById.get(r.toTable);
+        if(!a || !b) return;
+        const ay = colAnchorY(a, r.fromColumn), by = colAnchorY(b, r.toColumn);
+        const aCx = a.x + C.CARD_WIDTH/2, bCx = b.x + C.CARD_WIDTH/2;
+        const aRight = bCx >= aCx;
+        const ax = aRight ? a.x + C.CARD_WIDTH : a.x;
+        const bLeftSide = bCx > aCx;
+        const bx = bLeftSide ? b.x : b.x + C.CARD_WIDTH;
+        const dx = Math.max(40, Math.abs(bx-ax) * 0.4);
+        const c1x = ax + (aRight ? dx : -dx);
+        const c2x = bx + (bLeftSide ? -dx : dx);
+        const d = 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by;
+        const isCascade = (r.onDelete || '').toLowerCase() === 'cascade';
+        const path = document.createElementNS(SVGNS, 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', edgeActive ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
+        path.setAttribute('stroke-width', edgeActive ? '2.4' : '1.4');
+        path.setAttribute('fill', 'none');
+        if(!isCascade) path.setAttribute('stroke-dasharray', '5 4');
+        path.setAttribute('opacity', edgeActive ? '0.95' : '0.15');
+        edges.appendChild(path);
+        const hit = document.createElementNS(SVGNS, 'path');
+        hit.classList.add('edge-hit');
+        hit.setAttribute('d', d);
+        hit.setAttribute('stroke', 'transparent');
+        hit.setAttribute('stroke-width', '12');
+        hit.setAttribute('fill', 'none');
+        hit.addEventListener('mouseenter', () => highlightTables([r.fromTable, r.toTable]));
+        hit.addEventListener('mouseleave', () => {
+          if (dragTableId) return;
+          clearHighlight();
+        });
+        edges.appendChild(hit);
+        const dot = document.createElementNS(SVGNS, 'circle');
+        dot.setAttribute('cx', ax); dot.setAttribute('cy', ay); dot.setAttribute('r', '3');
+        dot.setAttribute('fill', edgeActive ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
+        dot.setAttribute('opacity', edgeActive ? '0.95' : '0.15');
+        edges.appendChild(dot);
+      });
+      scheduleMagnifier();
     }
 
     function highlightTable(tableId){
