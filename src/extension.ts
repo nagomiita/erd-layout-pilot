@@ -18,6 +18,13 @@ import type { DbdiagramFile } from './model/types';
 
 let layoutPreviewPanel: vscode.WebviewPanel | undefined;
 let diagramPanel: vscode.WebviewPanel | undefined;
+// Active .dbml the diagram currently tracks (relative to workspace root).
+// Kept in memory only so we never write to the user's settings.json.
+let activeDbmlPath: string | undefined;
+
+function resolveDbmlPath(settings = getSettings()): string {
+  return path.resolve(getWorkspaceRoot(), activeDbmlPath ?? settings.dbmlPath);
+}
 
 function escapeHtml(input: string): string {
   return input
@@ -144,7 +151,7 @@ async function persistPositions(positions: IncomingPosition[]): Promise<void> {
 async function cleanupStaleTables(): Promise<number> {
   const settings = getSettings();
   const filePath = resolveLayoutPath(settings);
-  const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+  const dbmlPath = resolveDbmlPath(settings);
   const payload = await readDbdiagram(filePath);
   const removed = await removeStaleTables(dbmlPath, payload);
   if (removed > 0) {
@@ -156,7 +163,7 @@ async function cleanupStaleTables(): Promise<number> {
 async function applyAutoLayout(): Promise<number> {
   const settings = getSettings();
   const filePath = resolveLayoutPath(settings);
-  const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+  const dbmlPath = resolveDbmlPath(settings);
   const payload = await readDbdiagram(filePath);
   const data = await buildDiagramData(dbmlPath, payload);
   if (data.parseError) {
@@ -184,7 +191,7 @@ async function renderDiagram(): Promise<void> {
     return;
   }
   const settings = getSettings();
-  const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+  const dbmlPath = resolveDbmlPath(settings);
   const layoutPath = resolveLayoutPath(settings);
   let layout: DbdiagramFile;
   try {
@@ -199,10 +206,10 @@ async function renderDiagram(): Promise<void> {
 
 async function openDiagram(uri?: vscode.Uri): Promise<void> {
   if (uri && uri.fsPath.endsWith('.dbml')) {
-    const config = vscode.workspace.getConfiguration('erdLayout');
     const rel = path.relative(getWorkspaceRoot(), uri.fsPath);
     if (rel && !rel.startsWith('..')) {
-      await config.update('dbmlPath', rel, vscode.ConfigurationTarget.Workspace);
+      // Remember the opened .dbml in memory only (do not touch settings.json).
+      activeDbmlPath = rel;
     }
   }
 
@@ -508,7 +515,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(async (document) => {
       const settings = getSettings();
-      const dbmlPath = path.resolve(getWorkspaceRoot(), settings.dbmlPath);
+      const dbmlPath = resolveDbmlPath(settings);
       const isDbml = path.normalize(document.uri.fsPath) === path.normalize(dbmlPath);
 
       if (isDbml) {
