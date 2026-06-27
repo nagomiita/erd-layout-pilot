@@ -4,6 +4,10 @@
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
   "version": "0.0.2",
   "publisher": "nagomiita-local",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nagomiita/erd-layout-pilot.git"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -85,7 +89,8 @@
     "build": "tsc -p ./",
     "watch": "tsc -w -p ./",
     "check": "tsc -p ./ --noEmit",
-    "package:vsix": "npx @vscode/vsce package"
+    "package:vsix": "npx @vscode/vsce package",
+    "release:local": "bash scripts/release-local.sh"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.1",

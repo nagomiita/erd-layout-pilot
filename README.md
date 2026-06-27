@@ -23,7 +23,7 @@ It is designed for AI-assisted layout operations on large ERDs.
 ## Dev
 
 ```bash
-cd tools/erd-layout-vscode-extension
+cd /home/takeshi/erd-layout-pilot
 npm install
 npm run build
 ```
@@ -38,3 +38,19 @@ This extension can be managed in a repository independent from Eagle.
 - Preserve command IDs (`erd-layout.*`) to keep user settings compatible.
 - Configure CI with `.github/workflows/ci.yml`.
 - Configure VSIX release with `.github/workflows/release-vsix.yml`.
+
+## Local Release (No Actions Required)
+
+When GitHub Actions is unavailable, publish from local machine:
+
+```bash
+cd /home/takeshi/erd-layout-pilot
+npm run release:local -- 0.0.3
+```
+
+This command performs all of the following:
+
+- Update extension version
+- Run check/build/package
+- Commit and push version bump
+- Create GitHub Release (`v<version>`) and upload VSIX
