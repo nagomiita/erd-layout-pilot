@@ -337,7 +337,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       while (magnifierContent.firstChild) magnifierContent.removeChild(magnifierContent.firstChild);
 
       const point = magnifierPoint || visibleCenterPoint();
-      const zoom = 1.75;
+      const zoom = 0.4375;
       const lensW = 280;
       const lensH = 190;
       const clone = viewport.cloneNode(true);
