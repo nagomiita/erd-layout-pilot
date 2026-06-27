@@ -144,10 +144,15 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     background: rgba(13,17,23,0.88); border: 1px solid var(--border); border-radius: 8px;
     box-shadow: 0 10px 28px rgba(0,0,0,0.38); pointer-events: none; overflow: hidden;
   }
-  #minimap svg { width: 100%; height: 100%; display: block; }
   #minimap .mini-title {
     position: absolute; top: 6px; left: 8px; color: var(--muted); font-size: 10px;
-    font-weight: 700; letter-spacing: 0.04em;
+    font-weight: 700; letter-spacing: 0.04em; z-index: 2;
+  }
+  #magnifierContent { position: absolute; inset: 0; overflow: hidden; }
+  #magnifierContent::after {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 18px; height: 18px;
+    transform: translate(-50%, -50%); border: 1px solid rgba(255,212,121,0.7);
+    border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
   }
   #empty { position: absolute; inset: 44px 0 0 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 </style>
@@ -176,8 +181,8 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     </div>
   </div>
   <div id="minimap">
-    <div class="mini-title">サブビュー</div>
-    <svg id="minimapSvg" viewBox="0 0 280 190" preserveAspectRatio="none"></svg>
+    <div class="mini-title">拡大ビュー</div>
+    <div id="magnifierContent"></div>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
@@ -190,7 +195,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     const edges = document.getElementById('edges');
     const banner = document.getElementById('banner');
     const minimap = document.getElementById('minimap');
-    const minimapSvg = document.getElementById('minimapSvg');
+    const magnifierContent = document.getElementById('magnifierContent');
 
     const tableById = new Map(DATA.tables.map(t => [t.id, t]));
     function cardHeight(t){ return C.HEADER_HEIGHT + t.columns.length * C.ROW_HEIGHT + C.CARD_PADDING; }
@@ -198,7 +203,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     let scale = 1, tx = 0, ty = 0;
     function applyTransform(){
       viewport.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
-      drawMiniMap(activeHighlightId);
+      scheduleMagnifier();
     }
 
     // ---- group colors ----
@@ -295,93 +300,54 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       });
     }
 
-    function previewWindow(highlightId){
-      const viewW = 280, viewH = 190, previewScale = 0.42;
-      const focus = highlightId ? tableById.get(highlightId) : undefined;
-      const stageRect = stage.getBoundingClientRect();
-      const cx = focus ? focus.x + C.CARD_WIDTH / 2 : (-tx + stageRect.width / 2) / scale;
-      const cy = focus ? focus.y + cardHeight(focus) / 2 : (-ty + stageRect.height / 2) / scale;
-      const w = viewW / previewScale;
-      const h = viewH / previewScale;
+    let magnifierPoint = null;
+    let magnifierFrame = 0;
+
+    function visibleCenterPoint(){
+      const rect = stage.getBoundingClientRect();
       return {
-        x: cx - w / 2,
-        y: cy - h / 2,
-        w,
-        h,
-        scale: previewScale,
+        x: (rect.width / 2 - tx) / scale,
+        y: (rect.height / 2 - ty) / scale,
       };
     }
 
-    function miniRect(x, y, w, h, window){
-      return {
-        x: (x - window.x) * window.scale,
-        y: (y - window.y) * window.scale,
-        w: Math.max(2, w * window.scale),
-        h: Math.max(2, h * window.scale),
+    function setMagnifierFromClient(clientX, clientY){
+      const rect = stage.getBoundingClientRect();
+      magnifierPoint = {
+        x: (clientX - rect.left - tx) / scale,
+        y: (clientY - rect.top - ty) / scale,
       };
+      scheduleMagnifier();
     }
 
-    function appendMiniRect(rect, attrs){
-      const node = document.createElementNS(SVGNS, 'rect');
-      node.setAttribute('x', String(rect.x));
-      node.setAttribute('y', String(rect.y));
-      node.setAttribute('width', String(rect.w));
-      node.setAttribute('height', String(rect.h));
-      Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
-      minimapSvg.appendChild(node);
+    function scheduleMagnifier(){
+      if (magnifierFrame) return;
+      magnifierFrame = requestAnimationFrame(() => {
+        magnifierFrame = 0;
+        drawMagnifier();
+      });
     }
 
-    function drawMiniMap(highlightId){
+    function drawMagnifier(){
       if(!DATA.tables.length){
         minimap.style.display = 'none';
         return;
       }
       minimap.style.display = 'block';
-      while (minimapSvg.firstChild) minimapSvg.removeChild(minimapSvg.firstChild);
-      appendMiniRect({ x: 0.5, y: 0.5, w: 279, h: 189 }, {
-        fill: 'rgba(22,27,34,0.78)',
-        stroke: 'rgba(139,148,158,0.18)',
-        'stroke-width': 1,
-      });
+      while (magnifierContent.firstChild) magnifierContent.removeChild(magnifierContent.firstChild);
 
-      const win = previewWindow(highlightId);
-      const related = highlightId ? relatedTableIds(highlightId) : new Set();
-      DATA.tables.forEach(t => {
-        const rect = miniRect(t.x, t.y, C.CARD_WIDTH, cardHeight(t), win);
-        if (rect.x > 280 || rect.y > 190 || rect.x + rect.w < 0 || rect.y + rect.h < 0) return;
-        const active = t.id === highlightId;
-        const dim = highlightId && !related.has(t.id);
-        appendMiniRect(rect, {
-          fill: active ? '#ffd479' : (t.group ? hexA(groupColor[t.group], 0.72) : 'rgba(88,166,255,0.72)'),
-          stroke: active ? '#fff1bd' : 'rgba(201,209,217,0.28)',
-          'stroke-width': active ? 1.8 : 0.8,
-          opacity: dim ? 0.22 : 0.9,
-          rx: 2,
-        });
-
-        if (active) {
-          const label = document.createElementNS(SVGNS, 'text');
-          label.setAttribute('x', String(Math.max(8, Math.min(214, rect.x))));
-          label.setAttribute('y', String(Math.max(22, rect.y - 7)));
-          label.setAttribute('fill', '#ffd479');
-          label.setAttribute('font-size', '11');
-          label.setAttribute('font-weight', '700');
-          label.textContent = t.name;
-          minimapSvg.appendChild(label);
-        }
-      });
-
-      const stageRect = stage.getBoundingClientRect();
-      const viewX = -tx / scale;
-      const viewY = -ty / scale;
-      const viewW = stageRect.width / scale;
-      const viewH = stageRect.height / scale;
-      appendMiniRect(miniRect(viewX, viewY, viewW, viewH, win), {
-        fill: 'rgba(88,166,255,0.08)',
-        stroke: '#58a6ff',
-        'stroke-width': 1.6,
-        rx: 3,
-      });
+      const point = magnifierPoint || visibleCenterPoint();
+      const zoom = 1.75;
+      const lensW = 280;
+      const lensH = 190;
+      const clone = viewport.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.style.position = 'absolute';
+      clone.style.left = '0';
+      clone.style.top = '0';
+      clone.style.transformOrigin = '0 0';
+      clone.style.transform = 'translate(' + (lensW / 2 - point.x * zoom) + 'px,' + (lensH / 2 - point.y * zoom) + 'px) scale(' + zoom + ')';
+      magnifierContent.appendChild(clone);
     }
 
     function relatedTableIds(tableId){
@@ -402,7 +368,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         c.classList.toggle('dim', !related.has(id));
       });
       drawEdges(tableId);
-      drawMiniMap(tableId);
+      scheduleMagnifier();
     }
 
     function clearHighlight(){
@@ -412,7 +378,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         c.classList.remove('dim');
       });
       drawEdges();
-      drawMiniMap();
+      scheduleMagnifier();
     }
 
     function attachHighlight(el, t){
@@ -464,7 +430,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       });
     }
 
-    function redraw(){ drawGroups(); drawEdges(activeHighlightId); drawMiniMap(activeHighlightId); }
+    function redraw(){ drawGroups(); drawEdges(activeHighlightId); scheduleMagnifier(); }
 
     // ---- drag ----
     function attachDrag(el, t){
@@ -480,7 +446,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           t.y = origY + (ev.clientY - startY) / scale;
           el.style.left = t.x + 'px'; el.style.top = t.y + 'px';
           drawEdges(activeHighlightId);
-          drawMiniMap(activeHighlightId);
+          setMagnifierFromClient(ev.clientX, ev.clientY);
         }
         function onUp(ev){
           window.removeEventListener('mousemove', onMove);
@@ -493,7 +459,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
             clearHighlight();
           }
           drawGroups();
-          drawMiniMap(activeHighlightId);
+          scheduleMagnifier();
           vscode.postMessage({ type:'moveTable', name: t.name, schema: t.schema, x: Math.round(t.x), y: Math.round(t.y) });
         }
         window.addEventListener('mousemove', onMove);
@@ -502,6 +468,9 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     }
 
     // ---- pan & zoom ----
+    stage.addEventListener('mousemove', (e) => {
+      setMagnifierFromClient(e.clientX, e.clientY);
+    });
     stage.addEventListener('mousedown', (e) => {
       if (e.target.closest('.card')) return;
       stage.classList.add('panning');
