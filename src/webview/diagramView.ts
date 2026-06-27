@@ -115,6 +115,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
     box-shadow: 0 8px 24px rgba(0,0,0,0.35); user-select: none; z-index: 2;
   }
+  .card.active {
+    border-color: #ffd479;
+    box-shadow: 0 0 0 2px rgba(255,212,121,0.42), 0 12px 30px rgba(0,0,0,0.42);
+    z-index: 3;
+  }
   .card.dim { opacity: 0.28; }
   .card-head {
     height: ${HEADER_HEIGHT}px; display: flex; align-items: center; gap: 6px;
@@ -181,12 +186,15 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     DATA.groups.forEach((g, i) => { groupColor[g.name] = g.color || C.GROUP_PALETTE[i % C.GROUP_PALETTE.length]; });
 
     const cardEls = new Map();
+    let activeHighlightId = null;
+    let dragTableId = null;
 
     function buildCards(){
       DATA.tables.forEach(t => {
         const el = document.createElement('div');
         el.className = 'card';
         el.dataset.id = t.id;
+        el.tabIndex = 0;
         el.style.left = t.x + 'px';
         el.style.top = t.y + 'px';
         const accent = t.group ? groupColor[t.group] : (t.headerColor || '#1f6feb');
@@ -212,6 +220,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           if (c.note) row.title = c.note;
           el.appendChild(row);
         });
+        attachHighlight(el, t);
         attachDrag(el, t);
         viewport.appendChild(el);
         cardEls.set(t.id, el);
@@ -266,6 +275,48 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       });
     }
 
+    function relatedTableIds(tableId){
+      const related = new Set([tableId]);
+      DATA.refs.forEach(r => {
+        if (r.fromTable === tableId) related.add(r.toTable);
+        if (r.toTable === tableId) related.add(r.fromTable);
+      });
+      return related;
+    }
+
+    function highlightTable(tableId){
+      activeHighlightId = tableId;
+      const related = relatedTableIds(tableId);
+      document.querySelectorAll('.card').forEach(c => {
+        const id = c.dataset.id;
+        c.classList.toggle('active', id === tableId);
+        c.classList.toggle('dim', !related.has(id));
+      });
+      drawEdges(tableId);
+    }
+
+    function clearHighlight(){
+      activeHighlightId = null;
+      document.querySelectorAll('.card').forEach(c => {
+        c.classList.remove('active');
+        c.classList.remove('dim');
+      });
+      drawEdges();
+    }
+
+    function attachHighlight(el, t){
+      el.addEventListener('mouseenter', () => highlightTable(t.id));
+      el.addEventListener('mouseleave', () => {
+        if (dragTableId) return;
+        clearHighlight();
+      });
+      el.addEventListener('focus', () => highlightTable(t.id));
+      el.addEventListener('blur', () => {
+        if (dragTableId) return;
+        clearHighlight();
+      });
+    }
+
     function drawGroups(){
       document.querySelectorAll('.group-card').forEach(e => e.remove());
       DATA.groups.forEach(g => {
@@ -309,21 +360,27 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       const head = el.querySelector('.card-head');
       head.addEventListener('mousedown', (e) => {
         e.preventDefault(); e.stopPropagation();
-        document.querySelectorAll('.card').forEach(c => { if(c!==el) c.classList.add('dim'); });
-        drawEdges(t.id);
+        dragTableId = t.id;
+        highlightTable(t.id);
         const startX = e.clientX, startY = e.clientY;
         const origX = t.x, origY = t.y;
         function onMove(ev){
           t.x = origX + (ev.clientX - startX) / scale;
           t.y = origY + (ev.clientY - startY) / scale;
           el.style.left = t.x + 'px'; el.style.top = t.y + 'px';
-          drawEdges(t.id);
+          drawEdges(activeHighlightId);
         }
-        function onUp(){
+        function onUp(ev){
           window.removeEventListener('mousemove', onMove);
           window.removeEventListener('mouseup', onUp);
-          document.querySelectorAll('.card').forEach(c => c.classList.remove('dim'));
-          redraw();
+          dragTableId = null;
+          const hovered = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.card');
+          if (hovered === el) {
+            highlightTable(t.id);
+          } else {
+            clearHighlight();
+          }
+          drawGroups();
           vscode.postMessage({ type:'moveTable', name: t.name, schema: t.schema, x: Math.round(t.x), y: Math.round(t.y) });
         }
         window.addEventListener('mousemove', onMove);
