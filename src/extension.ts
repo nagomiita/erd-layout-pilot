@@ -74,12 +74,11 @@ function findVsixAsset(release: GithubRelease): GithubReleaseAsset {
   return asset;
 }
 
-async function installLatestRelease(context: vscode.ExtensionContext): Promise<void> {
+async function installLatestRelease(installedVersion: string): Promise<void> {
   if (vscode.env.uiKind === vscode.UIKind.Web) {
     throw new Error('This command requires the desktop VS Code app.');
   }
 
-  const installedVersion = String(context.extension.packageJSON.version ?? '');
   const release = await fetchLatestGithubRelease();
   const releaseVersion = release.tag_name.replace(/^v/, '');
   if (releaseVersion === installedVersion) {
@@ -301,7 +300,7 @@ async function renderDiagram(): Promise<void> {
   diagramPanel.webview.html = renderDiagramHtml(data, { title, dbmlRelPath: title });
 }
 
-async function openDiagram(uri?: vscode.Uri): Promise<void> {
+async function openDiagram(context: vscode.ExtensionContext, uri?: vscode.Uri): Promise<void> {
   if (uri && uri.fsPath.endsWith('.dbml')) {
     const rel = path.relative(getWorkspaceRoot(), uri.fsPath);
     if (rel && !rel.startsWith('..')) {
@@ -341,6 +340,8 @@ async function openDiagram(uri?: vscode.Uri): Promise<void> {
           await renderDiagram();
         } else if (message.type === 'reload') {
           await renderDiagram();
+        } else if (message.type === 'installLatestRelease') {
+          await installLatestRelease(String(context.extension.packageJSON.version ?? ''));
         }
       } catch (error) {
         const text = error instanceof Error ? error.message : String(error);
@@ -641,7 +642,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('erd-layout.openDiagram', async (uri?: vscode.Uri) => {
       try {
-        await openDiagram(uri);
+        await openDiagram(context, uri);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         void vscode.window.showErrorMessage(`ERD Diagram: ${message}`);
@@ -667,7 +668,7 @@ export function activate(context: vscode.ExtensionContext): void {
   register(context, 'erd-layout.packAll', packAllCommand);
   register(context, 'erd-layout.applyInstruction', applyInstructionCommand);
   register(context, 'erd-layout.installLatestRelease', async () => {
-    await installLatestRelease(context);
+    await installLatestRelease(String(context.extension.packageJSON.version ?? ''));
   });
 }
 

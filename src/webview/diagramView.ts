@@ -157,6 +157,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     <button id="zoomIn">+</button>
     <button id="zoomOut">−</button>
     <button id="reload">Reload</button>
+    <button id="updateLatest" title="最新リリースへ更新">更新</button>
   </div>
   <div id="banner"></div>
   <div id="stage">
@@ -452,6 +453,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     document.getElementById('zoomIn').addEventListener('click', () => { scale=Math.min(2.5,scale*1.2); applyTransform(); });
     document.getElementById('zoomOut').addEventListener('click', () => { scale=Math.max(0.12,scale/1.2); applyTransform(); });
     document.getElementById('reload').addEventListener('click', () => vscode.postMessage({ type:'reload' }));
+    document.getElementById('updateLatest').addEventListener('click', () => vscode.postMessage({ type:'installLatestRelease' }));
 
     // ---- init ----
     if (DATA.parseError){
