@@ -36,6 +36,7 @@ export type LayoutSettings = {
   pinnedTables: Set<string>;
   cleanupReferencePathsOnApply: boolean;
   autoOpenDbmlPreviewOnLayoutSave: boolean;
+  refreshDbmlPreviewByTouch: boolean;
 };
 
 export type ValidationResult = {

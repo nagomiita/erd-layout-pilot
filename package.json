@@ -2,7 +2,7 @@
   "name": "erd-layout-pilot",
   "displayName": "ERD Layout Pilot",
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "nagomiita-local",
   "repository": {
     "type": "git",
@@ -96,6 +96,11 @@
           "type": "boolean",
           "default": true,
           "description": "Re-open DBML preview automatically after layout save and ERD Layout commands."
+        },
+        "erdLayout.refreshDbmlPreviewByTouch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trigger DBML preview refresh by re-writing DBML file content when layout changes; falls back to preview reopen if needed."
         }
       }
     }

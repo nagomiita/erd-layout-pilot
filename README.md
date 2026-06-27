@@ -22,10 +22,15 @@ It is designed for AI-assisted layout operations on large ERDs.
 - `erdLayout.pinnedTables`
 - `erdLayout.cleanupReferencePathsOnApply`
 - `erdLayout.autoOpenDbmlPreviewOnLayoutSave`
+- `erdLayout.refreshDbmlPreviewByTouch`
 
 When `erdLayout.autoOpenDbmlPreviewOnLayoutSave` is enabled (default: true),
 the extension re-opens DBML preview after applying ERD Layout commands and when
 the layout file is saved.
+
+When `erdLayout.refreshDbmlPreviewByTouch` is enabled (default: true),
+the extension first tries to refresh DBML preview in place by touching the DBML
+file, then falls back to preview reopen if touch-based refresh fails.
 
 ## Dev
 

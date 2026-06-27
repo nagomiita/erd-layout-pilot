@@ -26,6 +26,7 @@ export function getSettings(): LayoutSettings {
       'autoOpenDbmlPreviewOnLayoutSave',
       true,
     ),
+    refreshDbmlPreviewByTouch: config.get<boolean>('refreshDbmlPreviewByTouch', true),
   };
 }
 
