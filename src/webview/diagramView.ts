@@ -140,7 +140,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   .tag.fk { background: #163a5a; color: #79c0ff; }
   .tag.u  { background: #3a1b4d; color: #d2a8ff; }
   #minimap {
-    position: fixed; right: 14px; bottom: 14px; width: 220px; height: 150px; z-index: 25;
+    position: fixed; right: 14px; bottom: 14px; width: 280px; height: 190px; z-index: 25;
     background: rgba(13,17,23,0.88); border: 1px solid var(--border); border-radius: 8px;
     box-shadow: 0 10px 28px rgba(0,0,0,0.38); pointer-events: none; overflow: hidden;
   }
@@ -177,7 +177,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   </div>
   <div id="minimap">
     <div class="mini-title">サブビュー</div>
-    <svg id="minimapSvg" viewBox="0 0 220 150" preserveAspectRatio="none"></svg>
+    <svg id="minimapSvg" viewBox="0 0 280 190" preserveAspectRatio="none"></svg>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
@@ -295,25 +295,29 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       });
     }
 
-    function miniBounds(){
-      const pad = 80;
-      const minX = Math.min(...DATA.tables.map(t => t.x)) - pad;
-      const minY = Math.min(...DATA.tables.map(t => t.y)) - pad;
-      const maxX = Math.max(...DATA.tables.map(t => t.x + C.CARD_WIDTH)) + pad;
-      const maxY = Math.max(...DATA.tables.map(t => t.y + cardHeight(t))) + pad;
-      return { minX, minY, maxX, maxY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
+    function previewWindow(highlightId){
+      const viewW = 280, viewH = 190, previewScale = 0.42;
+      const focus = highlightId ? tableById.get(highlightId) : undefined;
+      const stageRect = stage.getBoundingClientRect();
+      const cx = focus ? focus.x + C.CARD_WIDTH / 2 : (-tx + stageRect.width / 2) / scale;
+      const cy = focus ? focus.y + cardHeight(focus) / 2 : (-ty + stageRect.height / 2) / scale;
+      const w = viewW / previewScale;
+      const h = viewH / previewScale;
+      return {
+        x: cx - w / 2,
+        y: cy - h / 2,
+        w,
+        h,
+        scale: previewScale,
+      };
     }
 
-    function miniRect(x, y, w, h, bounds){
-      const viewW = 220, viewH = 150, inset = 10;
-      const s = Math.min((viewW - inset * 2) / bounds.w, (viewH - inset * 2) / bounds.h);
-      const ox = (viewW - bounds.w * s) / 2;
-      const oy = (viewH - bounds.h * s) / 2;
+    function miniRect(x, y, w, h, window){
       return {
-        x: ox + (x - bounds.minX) * s,
-        y: oy + (y - bounds.minY) * s,
-        w: Math.max(2, w * s),
-        h: Math.max(2, h * s),
+        x: (x - window.x) * window.scale,
+        y: (y - window.y) * window.scale,
+        w: Math.max(2, w * window.scale),
+        h: Math.max(2, h * window.scale),
       };
     }
 
@@ -334,16 +338,17 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       }
       minimap.style.display = 'block';
       while (minimapSvg.firstChild) minimapSvg.removeChild(minimapSvg.firstChild);
-      appendMiniRect({ x: 0.5, y: 0.5, w: 219, h: 149 }, {
+      appendMiniRect({ x: 0.5, y: 0.5, w: 279, h: 189 }, {
         fill: 'rgba(22,27,34,0.78)',
         stroke: 'rgba(139,148,158,0.18)',
         'stroke-width': 1,
       });
 
-      const bounds = miniBounds();
+      const win = previewWindow(highlightId);
       const related = highlightId ? relatedTableIds(highlightId) : new Set();
       DATA.tables.forEach(t => {
-        const rect = miniRect(t.x, t.y, C.CARD_WIDTH, cardHeight(t), bounds);
+        const rect = miniRect(t.x, t.y, C.CARD_WIDTH, cardHeight(t), win);
+        if (rect.x > 280 || rect.y > 190 || rect.x + rect.w < 0 || rect.y + rect.h < 0) return;
         const active = t.id === highlightId;
         const dim = highlightId && !related.has(t.id);
         appendMiniRect(rect, {
@@ -353,6 +358,17 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           opacity: dim ? 0.22 : 0.9,
           rx: 2,
         });
+
+        if (active) {
+          const label = document.createElementNS(SVGNS, 'text');
+          label.setAttribute('x', String(Math.max(8, Math.min(214, rect.x))));
+          label.setAttribute('y', String(Math.max(22, rect.y - 7)));
+          label.setAttribute('fill', '#ffd479');
+          label.setAttribute('font-size', '11');
+          label.setAttribute('font-weight', '700');
+          label.textContent = t.name;
+          minimapSvg.appendChild(label);
+        }
       });
 
       const stageRect = stage.getBoundingClientRect();
@@ -360,7 +376,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       const viewY = -ty / scale;
       const viewW = stageRect.width / scale;
       const viewH = stageRect.height / scale;
-      appendMiniRect(miniRect(viewX, viewY, viewW, viewH, bounds), {
+      appendMiniRect(miniRect(viewX, viewY, viewW, viewH, win), {
         fill: 'rgba(88,166,255,0.08)',
         stroke: '#58a6ff',
         'stroke-width': 1.6,
