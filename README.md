@@ -32,6 +32,7 @@ open diagram.
 - ERD Layout: Arrange Group Grid
 - ERD Layout: Pack All Groups
 - ERD Layout: Apply Instruction
+- ERD Layout: Install Latest Release
 
 ## Auto Layout (grouped, FK-aware)
 
@@ -101,6 +102,8 @@ This extension can be managed in a repository independent from Eagle.
 - Preserve command IDs (`erd-layout.*`) to keep user settings compatible.
 - Configure CI with `.github/workflows/ci.yml`.
 - Configure VSIX release with `.github/workflows/release-vsix.yml`.
+
+`ERD Layout: Install Latest Release` downloads the newest GitHub Release VSIX for this repository and installs it in the current VS Code session.
 
 ## Local Release (No Actions Required)
 

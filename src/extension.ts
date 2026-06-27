@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import { parseInstruction } from './ai/instructionParser';
 import {
   getWorkspaceRoot,
@@ -22,6 +23,18 @@ let diagramPanel: vscode.WebviewPanel | undefined;
 // Kept in memory only so we never write to the user's settings.json.
 let activeDbmlPath: string | undefined;
 
+const GITHUB_REPOSITORY = 'nagomiita/erd-layout-pilot';
+
+type GithubReleaseAsset = {
+  name: string;
+  browser_download_url: string;
+};
+
+type GithubRelease = {
+  tag_name: string;
+  assets: GithubReleaseAsset[];
+};
+
 function resolveDbmlPath(settings = getSettings()): string {
   return path.resolve(getWorkspaceRoot(), activeDbmlPath ?? settings.dbmlPath);
 }
@@ -33,6 +46,90 @@ function escapeHtml(input: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function githubHeaders(): Record<string, string> {
+  return {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'erd-layout-pilot-vscode-extension',
+  };
+}
+
+async function fetchLatestGithubRelease(): Promise<GithubRelease> {
+  const response = await fetch(`https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest`, {
+    headers: githubHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch latest release (${response.status} ${response.statusText}).`);
+  }
+  return (await response.json()) as GithubRelease;
+}
+
+function findVsixAsset(release: GithubRelease): GithubReleaseAsset {
+  const asset = release.assets.find((item) => item.name.toLowerCase().endsWith('.vsix'));
+  if (!asset) {
+    throw new Error(`Latest release ${release.tag_name} does not include a VSIX asset.`);
+  }
+  return asset;
+}
+
+async function installLatestRelease(context: vscode.ExtensionContext): Promise<void> {
+  if (vscode.env.uiKind === vscode.UIKind.Web) {
+    throw new Error('This command requires the desktop VS Code app.');
+  }
+
+  const installedVersion = String(context.extension.packageJSON.version ?? '');
+  const release = await fetchLatestGithubRelease();
+  const releaseVersion = release.tag_name.replace(/^v/, '');
+  if (releaseVersion === installedVersion) {
+    void vscode.window.showInformationMessage(
+      `ERD Layout: already on the latest release (${release.tag_name}).`,
+    );
+    return;
+  }
+
+  const asset = findVsixAsset(release);
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'erd-layout-pilot-'));
+  const vsixPath = path.join(tempDir, asset.name);
+
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `Installing ${release.tag_name}`,
+        cancellable: false,
+      },
+      async (progress) => {
+        progress.report({ message: `Downloading ${asset.name}` });
+        const response = await fetch(asset.browser_download_url, {
+          headers: {
+            'User-Agent': 'erd-layout-pilot-vscode-extension',
+          },
+        });
+        if (!response.ok) {
+          throw new Error(
+            `Failed to download VSIX (${response.status} ${response.statusText}).`,
+          );
+        }
+        const bytes = await response.arrayBuffer();
+        await fs.writeFile(vsixPath, Buffer.from(bytes));
+
+        progress.report({ message: 'Installing extension' });
+        await vscode.commands.executeCommand('workbench.extensions.installExtension', vscode.Uri.file(vsixPath));
+      },
+    );
+
+    const reload = await vscode.window.showInformationMessage(
+      `ERD Layout: installed ${asset.name}. Reload now?`,
+      'Reload',
+    );
+    if (reload === 'Reload') {
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    }
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 function createLayoutPreviewHtml(payload: DbdiagramFile, title: string): string {
@@ -569,6 +666,9 @@ export function activate(context: vscode.ExtensionContext): void {
   register(context, 'erd-layout.arrangeGroupGrid', arrangeGroupGridCommand);
   register(context, 'erd-layout.packAll', packAllCommand);
   register(context, 'erd-layout.applyInstruction', applyInstructionCommand);
+  register(context, 'erd-layout.installLatestRelease', async () => {
+    await installLatestRelease(context);
+  });
 }
 
 export function deactivate(): void {

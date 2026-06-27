@@ -26,7 +26,8 @@
     "onCommand:erd-layout.moveGroup",
     "onCommand:erd-layout.arrangeGroupGrid",
     "onCommand:erd-layout.packAll",
-    "onCommand:erd-layout.applyInstruction"
+    "onCommand:erd-layout.applyInstruction",
+    "onCommand:erd-layout.installLatestRelease"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -85,6 +86,10 @@
       {
         "command": "erd-layout.applyInstruction",
         "title": "ERD Layout: Apply Instruction"
+      },
+      {
+        "command": "erd-layout.installLatestRelease",
+        "title": "ERD Layout: Install Latest Release"
       }
     ],
     "menus": {
