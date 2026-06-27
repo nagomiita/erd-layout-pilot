@@ -6,6 +6,7 @@ It is designed for AI-assisted layout operations on large ERDs.
 ## Commands
 
 - ERD Layout: Open Config
+- ERD Layout: Open DBML Preview
 - ERD Layout: Validate Layout JSON
 - ERD Layout: Move Group
 - ERD Layout: Arrange Group Grid
@@ -15,10 +16,16 @@ It is designed for AI-assisted layout operations on large ERDs.
 ## Settings
 
 - `erdLayout.filePath`
+- `erdLayout.dbmlPath`
 - `erdLayout.defaultGapX`
 - `erdLayout.defaultGapY`
 - `erdLayout.pinnedTables`
 - `erdLayout.cleanupReferencePathsOnApply`
+- `erdLayout.autoOpenDbmlPreviewOnLayoutSave`
+
+When `erdLayout.autoOpenDbmlPreviewOnLayoutSave` is enabled (default: true),
+the extension re-opens DBML preview after applying ERD Layout commands and when
+the layout file is saved.
 
 ## Dev
 

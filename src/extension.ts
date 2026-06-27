@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'node:path';
 import { parseInstruction } from './ai/instructionParser';
 import {
   getSettings,
@@ -8,6 +9,29 @@ import {
 } from './io/dbdiagramStore';
 import { arrangeGroupGrid, moveGroup, packAllGroups } from './layout/groupOps';
 import { cleanupInvalidReferencePaths, validateDbdiagram } from './layout/validate';
+
+async function refreshDbmlPreview(settings = getSettings()): Promise<void> {
+  const dbmlPath = path.resolve(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', settings.dbmlPath);
+  const target = vscode.Uri.file(dbmlPath);
+  const doc = await vscode.workspace.openTextDocument(target);
+  await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: true });
+  await vscode.commands.executeCommand('dbdiagram-vscode.showPreview');
+}
+
+async function openDbmlPreview(): Promise<void> {
+  try {
+    await refreshDbmlPreview();
+  } catch {
+    throw new Error(
+      'Failed to open DBML preview. Ensure dbdiagram extension is installed and erdLayout.dbmlPath is correct.',
+    );
+  }
+}
+
+function isLayoutDocument(document: vscode.TextDocument, settings = getSettings()): boolean {
+  const layoutPath = resolveLayoutPath(settings);
+  return path.normalize(document.uri.fsPath) === path.normalize(layoutPath);
+}
 
 async function openConfig(): Promise<void> {
   const settings = getSettings();
@@ -61,6 +85,9 @@ async function moveGroupCommand(): Promise<void> {
   const payload = await readDbdiagram(filePath);
   const changed = moveGroup(payload, groupName, dx, dy, settings.pinnedTables);
   await writeDbdiagram(filePath, payload);
+  if (settings.autoOpenDbmlPreviewOnLayoutSave) {
+    await openDbmlPreview();
+  }
   void vscode.window.showInformationMessage(
     `ERD Layout: moved ${changed} table(s) in group ${groupName}.`,
   );
@@ -94,6 +121,9 @@ async function arrangeGroupGridCommand(): Promise<void> {
     settings.pinnedTables,
   );
   await writeDbdiagram(filePath, payload);
+  if (settings.autoOpenDbmlPreviewOnLayoutSave) {
+    await openDbmlPreview();
+  }
   void vscode.window.showInformationMessage(
     `ERD Layout: arranged ${changed} table(s) in group ${groupName}.`,
   );
@@ -105,6 +135,9 @@ async function packAllCommand(): Promise<void> {
   const payload = await readDbdiagram(filePath);
   const changed = packAllGroups(payload, settings.pinnedTables);
   await writeDbdiagram(filePath, payload);
+  if (settings.autoOpenDbmlPreviewOnLayoutSave) {
+    await openDbmlPreview();
+  }
   void vscode.window.showInformationMessage(`ERD Layout: packed ${changed} table(s).`);
 }
 
@@ -149,6 +182,9 @@ async function applyInstructionCommand(): Promise<void> {
   }
 
   await writeDbdiagram(filePath, payload);
+  if (settings.autoOpenDbmlPreviewOnLayoutSave) {
+    await openDbmlPreview();
+  }
   void vscode.window.showInformationMessage(
     `ERD Layout: applied instruction. touched=${touched}, cleanedRefs=${cleaned}`,
   );
@@ -172,7 +208,23 @@ function register(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (document) => {
+      const settings = getSettings();
+      if (!settings.autoOpenDbmlPreviewOnLayoutSave || !isLayoutDocument(document, settings)) {
+        return;
+      }
+
+      try {
+        await openDbmlPreview();
+      } catch {
+        // Non-blocking: save should still succeed even if preview cannot be refreshed.
+      }
+    }),
+  );
+
   register(context, 'erd-layout.openConfig', openConfig);
+  register(context, 'erd-layout.openDbmlPreview', openDbmlPreview);
   register(context, 'erd-layout.validate', validate);
   register(context, 'erd-layout.moveGroup', moveGroupCommand);
   register(context, 'erd-layout.arrangeGroupGrid', arrangeGroupGridCommand);

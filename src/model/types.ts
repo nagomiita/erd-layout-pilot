@@ -30,10 +30,12 @@ export type DbdiagramFile = {
 
 export type LayoutSettings = {
   filePath: string;
+  dbmlPath: string;
   defaultGapX: number;
   defaultGapY: number;
   pinnedTables: Set<string>;
   cleanupReferencePathsOnApply: boolean;
+  autoOpenDbmlPreviewOnLayoutSave: boolean;
 };
 
 export type ValidationResult = {

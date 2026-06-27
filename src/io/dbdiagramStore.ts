@@ -17,10 +17,15 @@ export function getSettings(): LayoutSettings {
   const config = vscode.workspace.getConfiguration('erdLayout');
   return {
     filePath: config.get<string>('filePath', DEFAULT_FILE_PATH),
+    dbmlPath: config.get<string>('dbmlPath', 'backend/tenant/autogen/db/erd.dbml'),
     defaultGapX: config.get<number>('defaultGapX', 220),
     defaultGapY: config.get<number>('defaultGapY', 140),
     pinnedTables: new Set(config.get<string[]>('pinnedTables', [])),
     cleanupReferencePathsOnApply: config.get<boolean>('cleanupReferencePathsOnApply', true),
+    autoOpenDbmlPreviewOnLayoutSave: config.get<boolean>(
+      'autoOpenDbmlPreviewOnLayoutSave',
+      true,
+    ),
   };
 }
 

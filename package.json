@@ -2,7 +2,7 @@
   "name": "erd-layout-pilot",
   "displayName": "ERD Layout Pilot",
   "description": "Edit ERD layout JSON with command-driven and AI-friendly operations.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "nagomiita-local",
   "repository": {
     "type": "git",
@@ -17,6 +17,7 @@
   ],
   "activationEvents": [
     "onCommand:erd-layout.openConfig",
+    "onCommand:erd-layout.openDbmlPreview",
     "onCommand:erd-layout.validate",
     "onCommand:erd-layout.moveGroup",
     "onCommand:erd-layout.arrangeGroupGrid",
@@ -29,6 +30,10 @@
       {
         "command": "erd-layout.openConfig",
         "title": "ERD Layout: Open Config"
+      },
+      {
+        "command": "erd-layout.openDbmlPreview",
+        "title": "ERD Layout: Open DBML Preview"
       },
       {
         "command": "erd-layout.validate",
@@ -59,6 +64,11 @@
           "default": "backend/tenant/autogen/db/erd.dbdiagram",
           "description": "Relative path to the ERD layout JSON file."
         },
+        "erdLayout.dbmlPath": {
+          "type": "string",
+          "default": "backend/tenant/autogen/db/erd.dbml",
+          "description": "Relative path to the DBML file used for diagram preview."
+        },
         "erdLayout.defaultGapX": {
           "type": "number",
           "default": 220,
@@ -81,6 +91,11 @@
           "type": "boolean",
           "default": true,
           "description": "Cleanup invalid reference paths after applyInstruction."
+        },
+        "erdLayout.autoOpenDbmlPreviewOnLayoutSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-open DBML preview automatically after layout save and ERD Layout commands."
         }
       }
     }
