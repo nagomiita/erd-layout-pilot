@@ -7,7 +7,7 @@ export type DiagramViewOptions = {
 
 const CARD_WIDTH = 260;
 const HEADER_HEIGHT = 34;
-const ROW_HEIGHT = 22;
+const ROW_HEIGHT = 36;
 const CARD_PADDING = 8;
 
 const GROUP_PALETTE = [
@@ -148,14 +148,29 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   .name-sub { color: var(--muted); font-size: 10px; font-weight: 500; }
   .card-head .badge { margin-left: auto; font-size: 10px; color: var(--muted); font-weight: 500; }
   .col {
-    height: ${ROW_HEIGHT}px; display: flex; align-items: center; gap: 6px;
-    padding: 0 10px; font-size: 11px; border-top: 1px solid #21262d;
+    height: ${ROW_HEIGHT}px; display: grid; align-items: center; column-gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 3px 10px; font-size: 11px; border-top: 1px solid #21262d;
   }
-  .col .cname { flex: 1; }
-  .col .ctype { margin-left: auto; color: var(--muted); font-size: 10px; white-space: nowrap; }
+  .col .cname {
+    min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 1px;
+    line-height: 1.15;
+  }
+  .col .cname .name-main,
+  .col .cname .name-sub {
+    display: block;
+  }
+  .col .cmeta {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+    min-width: 0; max-width: 92px;
+  }
+  .col .ctype {
+    color: var(--muted); font-size: 10px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
   .col.pk .cname { color: #ffd479; font-weight: 600; }
   .col.fk .cname { color: #79c0ff; }
-  .tag { font-size: 9px; padding: 0 4px; border-radius: 4px; line-height: 14px; }
+  .tag { flex: 0 0 auto; font-size: 9px; padding: 0 4px; border-radius: 4px; line-height: 14px; }
   .tag.pk { background: #5a4b13; color: #ffd479; }
   .tag.fk { background: #163a5a; color: #79c0ff; }
   .tag.u  { background: #3a1b4d; color: #d2a8ff; }
@@ -340,10 +355,13 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           sub.className = 'name-sub';
           label.appendChild(sub);
           updateNameLabel(label);
-          if (c.pk){ const tag=document.createElement('span'); tag.className='tag pk'; tag.textContent='PK'; row.appendChild(tag); }
-          if (c.fk){ const tag=document.createElement('span'); tag.className='tag fk'; tag.textContent='FK'; row.appendChild(tag); }
-          if (c.unique && !c.pk){ const tag=document.createElement('span'); tag.className='tag u'; tag.textContent='U'; row.appendChild(tag); }
-          const tp = document.createElement('span'); tp.className='ctype'; tp.textContent = c.type; row.appendChild(tp);
+          const meta = document.createElement('span');
+          meta.className = 'cmeta';
+          if (c.pk){ const tag=document.createElement('span'); tag.className='tag pk'; tag.textContent='PK'; meta.appendChild(tag); }
+          if (c.fk){ const tag=document.createElement('span'); tag.className='tag fk'; tag.textContent='FK'; meta.appendChild(tag); }
+          if (c.unique && !c.pk){ const tag=document.createElement('span'); tag.className='tag u'; tag.textContent='U'; meta.appendChild(tag); }
+          const tp = document.createElement('span'); tp.className='ctype'; tp.textContent = c.type; tp.title = c.type; meta.appendChild(tp);
+          row.appendChild(meta);
           if (c.note) row.title = c.note;
           el.appendChild(row);
         });
@@ -899,9 +917,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           const cy = y + C.HEADER_HEIGHT + i * C.ROW_HEIGHT;
           const colClass = c.pk ? 'col pk' : (c.fk ? 'col fk' : 'col');
           const colName = nameMode === 'logical' && logicalName(c.note) ? logicalName(c.note) : c.name;
+          const colSub = nameMode === 'logical' && logicalName(c.note) ? c.name : logicalName(c.note);
           parts.push('<line x1="' + x + '" y1="' + cy + '" x2="' + (x + C.CARD_WIDTH) + '" y2="' + cy + '" stroke="#21262d"/>');
-          parts.push('<text class="' + colClass + '" x="' + (x + 10) + '" y="' + (cy + 15) + '">' + escapeXml(colName) + '</text>');
-          parts.push('<text class="type" x="' + (x + C.CARD_WIDTH - 10) + '" y="' + (cy + 15) + '" text-anchor="end">' + escapeXml(c.type) + '</text>');
+          parts.push('<text class="' + colClass + '" x="' + (x + 10) + '" y="' + (cy + 14) + '">' + escapeXml(colName) + '</text>');
+          if (colSub) parts.push('<text class="sub" x="' + (x + 10) + '" y="' + (cy + 27) + '">' + escapeXml(colSub) + '</text>');
+          parts.push('<text class="type" x="' + (x + C.CARD_WIDTH - 10) + '" y="' + (cy + 21) + '" text-anchor="end">' + escapeXml(c.type) + '</text>');
         });
       });
       parts.push('</svg>');
