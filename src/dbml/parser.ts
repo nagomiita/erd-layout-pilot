@@ -124,14 +124,16 @@ function parseDbmlString(source: string): ParsedSchema {
       }
       // relation '*' = many side (child / FK), '1' = one side (parent / PK)
       const many = endpoints.find((e) => e.relation === '*') ?? endpoints[0];
-      const one = endpoints.find((e) => e.relation === '1') ?? endpoints[1];
+      const one = endpoints.find((e) => e.relation === '1') ?? endpoints.find((e) => e !== many) ?? endpoints[1];
       const fromSchema = many.schemaName ?? schemaName;
       const toSchema = one.schemaName ?? schemaName;
       refs.push({
         fromTable: tableId(fromSchema, many.tableName),
         fromColumn: many.fieldNames[0],
+        fromRelation: many.relation,
         toTable: tableId(toSchema, one.tableName),
         toColumn: one.fieldNames[0],
+        toRelation: one.relation,
         onDelete: ref.onDelete,
       });
     }

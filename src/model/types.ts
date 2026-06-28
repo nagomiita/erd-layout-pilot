@@ -101,8 +101,10 @@ export type DiagramTable = {
 export type DiagramRef = {
   fromTable: string;
   fromColumn: string;
+  fromRelation?: string;
   toTable: string;
   toColumn: string;
+  toRelation?: string;
   onDelete?: string;
 };
 

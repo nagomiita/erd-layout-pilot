@@ -107,6 +107,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   #viewport { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
   #edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 1; }
   #edges .edge-hit { pointer-events: stroke; cursor: pointer; }
+  #edges .rel-label {
+    font-size: 11px; font-weight: 700; fill: #d8ecff;
+    stroke: var(--bg); stroke-width: 3px; paint-order: stroke fill;
+    pointer-events: none;
+  }
   .group-card {
     position: absolute; border-radius: 16px; pointer-events: none; z-index: 0;
     border: 1.5px solid; overflow: hidden;
@@ -173,6 +178,18 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     transform: translate(-50%, -50%); border: 1px solid rgba(255,212,121,0.7);
     border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
   }
+  #legend {
+    position: fixed; left: 14px; bottom: 14px; z-index: 24;
+    display: grid; gap: 6px; padding: 10px 12px;
+    background: rgba(13,17,23,0.88); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-size: 11px; box-shadow: 0 10px 28px rgba(0,0,0,0.28);
+    pointer-events: none;
+  }
+  #legend .legend-row { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  #legend .legend-line { width: 34px; height: 0; border-top: 2px solid #56a0d8; }
+  #legend .legend-line.dashed { border-top-style: dashed; }
+  #legend .legend-line.cascade { border-top-color: #f97583; }
+  #legend .legend-cardinality { color: #d8ecff; font-weight: 700; min-width: 34px; }
   #empty { position: absolute; inset: 44px 0 0 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 </style>
 </head>
@@ -203,6 +220,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   <div id="minimap">
     <div class="mini-title">拡大ビュー</div>
     <div id="magnifierContent"></div>
+  </div>
+  <div id="legend" aria-hidden="true">
+    <div class="legend-row"><span class="legend-line dashed"></span><span>通常リレーション</span></div>
+    <div class="legend-row"><span class="legend-line cascade"></span><span>削除時 CASCADE</span></div>
+    <div class="legend-row"><span class="legend-cardinality">N / 1</span><span>多側 / 1側</span></div>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
@@ -335,6 +357,24 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     function colAnchorY(t, colName){
       return t.y + C.HEADER_HEIGHT + (colIndex(t, colName) + 0.5) * C.ROW_HEIGHT;
     }
+    function relationLabel(relation){
+      return relation === '*' ? 'N' : (relation === '1' ? '1' : '');
+    }
+    function appendRelationLabel(x, y, sideRight, text, opacity){
+      if(!text) return;
+      const label = document.createElementNS(SVGNS, 'text');
+      label.classList.add('rel-label');
+      label.setAttribute('x', String(x + (sideRight ? -14 : 14)));
+      label.setAttribute('y', String(y - 6));
+      label.setAttribute('text-anchor', sideRight ? 'end' : 'start');
+      label.setAttribute('opacity', String(opacity));
+      label.textContent = text;
+      edges.appendChild(label);
+    }
+    function appendRelationEndLabels(r, ax, ay, aRight, bx, by, bLeftSide, opacity){
+      appendRelationLabel(ax, ay, aRight, relationLabel(r.fromRelation), opacity);
+      appendRelationLabel(bx, by, !bLeftSide, relationLabel(r.toRelation), opacity);
+    }
 
     function drawEdges(highlightId){
       while (edges.firstChild) edges.removeChild(edges.firstChild);
@@ -379,6 +419,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         dot.setAttribute('fill', active ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
         dot.setAttribute('opacity', highlightId && !active ? '0.15' : '0.9');
         edges.appendChild(dot);
+        appendRelationEndLabels(r, ax, ay, aRight, bx, by, bLeftSide, highlightId && !active ? 0.15 : 0.9);
       });
     }
 
@@ -491,6 +532,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         dot.setAttribute('fill', edgeActive ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
         dot.setAttribute('opacity', edgeActive ? '0.95' : '0.15');
         edges.appendChild(dot);
+        appendRelationEndLabels(r, ax, ay, aRight, bx, by, bLeftSide, edgeActive ? 0.95 : 0.15);
       });
       scheduleMagnifier();
     }
