@@ -366,8 +366,8 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     function colAnchorY(t, colName){
       return t.y + C.HEADER_HEIGHT + (colIndex(t, colName) + 0.5) * C.ROW_HEIGHT;
     }
-    function pointTowardTable(x, y, sideRight, distance){
-      return { x: x + (sideRight ? -distance : distance), y };
+    function pointAwayFromTable(x, y, sideRight, distance){
+      return { x: x + (sideRight ? distance : -distance), y };
     }
     function appendRelationEndMarker(x, y, sideRight, relation, min, color, opacity){
       if (relation !== '*' && relation !== '1') return;
@@ -396,21 +396,21 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       };
 
       if (min === 0) {
-        const optional = pointTowardTable(x, y, sideRight, 6);
+        const optional = pointAwayFromTable(x, y, sideRight, 6);
         makeCircle(optional.x, optional.y, 4);
       } else {
-        const mandatory = pointTowardTable(x, y, sideRight, 7);
+        const mandatory = pointAwayFromTable(x, y, sideRight, 7);
         makeLine(mandatory.x, y - 7, mandatory.x, y + 7);
       }
 
       if (relation === '*') {
-        const stem = pointTowardTable(x, y, sideRight, 20);
-        const tip = pointTowardTable(x, y, sideRight, 13);
+        const stem = pointAwayFromTable(x, y, sideRight, 20);
+        const tip = pointAwayFromTable(x, y, sideRight, 13);
         makeLine(tip.x, tip.y, stem.x, stem.y);
         makeLine(tip.x, tip.y, stem.x, stem.y - 7);
         makeLine(tip.x, tip.y, stem.x, stem.y + 7);
       } else {
-        const maxOne = pointTowardTable(x, y, sideRight, 15);
+        const maxOne = pointAwayFromTable(x, y, sideRight, 15);
         makeLine(maxOne.x, y - 7, maxOne.x, y + 7);
       }
 
