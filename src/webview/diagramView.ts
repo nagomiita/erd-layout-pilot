@@ -406,11 +406,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       }
 
       if (relation === '*') {
+        const foot = pointAwayFromTable(x, y, sideRight, 7);
         const stem = pointAwayFromTable(x, y, sideRight, 20);
-        const tip = pointAwayFromTable(x, y, sideRight, 13);
-        makeLine(tip.x, tip.y, stem.x, stem.y);
-        makeLine(tip.x, tip.y, stem.x, stem.y - 7);
-        makeLine(tip.x, tip.y, stem.x, stem.y + 7);
+        makeLine(foot.x, foot.y, stem.x, stem.y);
+        makeLine(foot.x, foot.y - 7, stem.x, stem.y);
+        makeLine(foot.x, foot.y + 7, stem.x, stem.y);
       } else {
         const maxOne = pointAwayFromTable(x, y, sideRight, 15);
         makeLine(maxOne.x, y - 7, maxOne.x, y + 7);
@@ -816,11 +816,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         line(mandatory.x, y - 7, mandatory.x, y + 7);
       }
       if (relation === '*') {
+        const foot = svgPointAwayFromTable(x, y, sideRight, 7);
         const stem = svgPointAwayFromTable(x, y, sideRight, 20);
-        const tip = svgPointAwayFromTable(x, y, sideRight, 13);
-        line(tip.x, tip.y, stem.x, stem.y);
-        line(tip.x, tip.y, stem.x, stem.y - 7);
-        line(tip.x, tip.y, stem.x, stem.y + 7);
+        line(foot.x, foot.y, stem.x, stem.y);
+        line(foot.x, foot.y - 7, stem.x, stem.y);
+        line(foot.x, foot.y + 7, stem.x, stem.y);
       } else {
         const maxOne = svgPointAwayFromTable(x, y, sideRight, 15);
         line(maxOne.x, y - 7, maxOne.x, y + 7);
