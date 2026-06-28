@@ -105,6 +105,20 @@ This extension can be managed in a repository independent from Eagle.
 
 `ERD Layout: 最新リリースへ更新` downloads the newest GitHub Release VSIX for this repository and installs it in the current VS Code session.
 
+## Release via GitHub Actions
+
+GitHub Actions releases the VSIX from the version in `package.json`.
+Use the release push helper for changes that should be published:
+
+```bash
+cd /home/takeshi/erd-layout-pilot
+npm run release:push -- "Describe the change"
+```
+
+This command bumps the patch version, runs check/build, commits tracked changes,
+and pushes. After CI passes on `main`, `.github/workflows/release-vsix.yml`
+creates the GitHub Release for `v<version>`.
+
 ## Local Release (No Actions Required)
 
 When GitHub Actions is unavailable, publish from local machine:

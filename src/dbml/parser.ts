@@ -116,6 +116,7 @@ function parseDbmlString(source: string): ParsedSchema {
           tableName: string;
           fieldNames: string[];
           relation: string;
+          fields?: Array<{ not_null?: boolean }>;
         }>;
       };
       const endpoints = ref.endpoints ?? [];
@@ -127,13 +128,16 @@ function parseDbmlString(source: string): ParsedSchema {
       const one = endpoints.find((e) => e.relation === '1') ?? endpoints.find((e) => e !== many) ?? endpoints[1];
       const fromSchema = many.schemaName ?? schemaName;
       const toSchema = one.schemaName ?? schemaName;
+      const manyField = many.fields?.[0] as { not_null?: boolean } | undefined;
       refs.push({
         fromTable: tableId(fromSchema, many.tableName),
         fromColumn: many.fieldNames[0],
         fromRelation: many.relation,
+        fromMin: 0,
         toTable: tableId(toSchema, one.tableName),
         toColumn: one.fieldNames[0],
         toRelation: one.relation,
+        toMin: manyField?.not_null ? 1 : 0,
         onDelete: ref.onDelete,
       });
     }

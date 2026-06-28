@@ -107,11 +107,6 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   #viewport { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
   #edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 1; }
   #edges .edge-hit { pointer-events: stroke; cursor: pointer; }
-  #edges .rel-label {
-    font-size: 11px; font-weight: 700; fill: #d8ecff;
-    stroke: var(--bg); stroke-width: 3px; paint-order: stroke fill;
-    pointer-events: none;
-  }
   .group-card {
     position: absolute; border-radius: 16px; pointer-events: none; z-index: 0;
     border: 1.5px solid; overflow: hidden;
@@ -189,7 +184,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   #legend .legend-line { width: 34px; height: 0; border-top: 2px solid #56a0d8; }
   #legend .legend-line.dashed { border-top-style: dashed; }
   #legend .legend-line.cascade { border-top-color: #f97583; }
-  #legend .legend-cardinality { color: #d8ecff; font-weight: 700; min-width: 34px; }
+  #legend .legend-cardinality { width: 52px; height: 18px; overflow: visible; }
+  #legend .legend-cardinality path,
+  #legend .legend-cardinality line,
+  #legend .legend-cardinality circle {
+    stroke: #d8ecff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+  }
   #empty { position: absolute; inset: 44px 0 0 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
 </style>
 </head>
@@ -224,7 +224,16 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   <div id="legend" aria-hidden="true">
     <div class="legend-row"><span class="legend-line dashed"></span><span>通常リレーション</span></div>
     <div class="legend-row"><span class="legend-line cascade"></span><span>削除時 CASCADE</span></div>
-    <div class="legend-row"><span class="legend-cardinality">N / 1</span><span>多側 / 1側</span></div>
+    <div class="legend-row">
+      <svg class="legend-cardinality" viewBox="0 0 52 18" aria-hidden="true">
+        <line x1="6" y1="9" x2="46" y2="9"></line>
+        <circle cx="8" cy="9" r="4"></circle>
+        <path d="M 21 9 L 13 3 M 21 9 L 13 9 M 21 9 L 13 15"></path>
+        <line x1="36" y1="3" x2="36" y2="15"></line>
+        <line x1="44" y1="3" x2="44" y2="15"></line>
+      </svg>
+      <span>0..N / 1 (Crow's Foot)</span>
+    </div>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
@@ -357,23 +366,59 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     function colAnchorY(t, colName){
       return t.y + C.HEADER_HEIGHT + (colIndex(t, colName) + 0.5) * C.ROW_HEIGHT;
     }
-    function relationLabel(relation){
-      return relation === '*' ? 'N' : (relation === '1' ? '1' : '');
+    function pointTowardTable(x, y, sideRight, distance){
+      return { x: x + (sideRight ? -distance : distance), y };
     }
-    function appendRelationLabel(x, y, sideRight, text, opacity){
-      if(!text) return;
-      const label = document.createElementNS(SVGNS, 'text');
-      label.classList.add('rel-label');
-      label.setAttribute('x', String(x + (sideRight ? -14 : 14)));
-      label.setAttribute('y', String(y - 6));
-      label.setAttribute('text-anchor', sideRight ? 'end' : 'start');
-      label.setAttribute('opacity', String(opacity));
-      label.textContent = text;
-      edges.appendChild(label);
+    function appendRelationEndMarker(x, y, sideRight, relation, min, color, opacity){
+      if (relation !== '*' && relation !== '1') return;
+      const g = document.createElementNS(SVGNS, 'g');
+      g.setAttribute('stroke', color);
+      g.setAttribute('stroke-width', '2');
+      g.setAttribute('fill', 'none');
+      g.setAttribute('stroke-linecap', 'round');
+      g.setAttribute('stroke-linejoin', 'round');
+      g.setAttribute('opacity', String(opacity));
+
+      const makeLine = (x1, y1, x2, y2) => {
+        const line = document.createElementNS(SVGNS, 'line');
+        line.setAttribute('x1', String(x1));
+        line.setAttribute('y1', String(y1));
+        line.setAttribute('x2', String(x2));
+        line.setAttribute('y2', String(y2));
+        g.appendChild(line);
+      };
+      const makeCircle = (cx, cy, r) => {
+        const circle = document.createElementNS(SVGNS, 'circle');
+        circle.setAttribute('cx', String(cx));
+        circle.setAttribute('cy', String(cy));
+        circle.setAttribute('r', String(r));
+        g.appendChild(circle);
+      };
+
+      if (min === 0) {
+        const optional = pointTowardTable(x, y, sideRight, 6);
+        makeCircle(optional.x, optional.y, 4);
+      } else {
+        const mandatory = pointTowardTable(x, y, sideRight, 7);
+        makeLine(mandatory.x, y - 7, mandatory.x, y + 7);
+      }
+
+      if (relation === '*') {
+        const stem = pointTowardTable(x, y, sideRight, 20);
+        const tip = pointTowardTable(x, y, sideRight, 13);
+        makeLine(tip.x, tip.y, stem.x, stem.y);
+        makeLine(tip.x, tip.y, stem.x, stem.y - 7);
+        makeLine(tip.x, tip.y, stem.x, stem.y + 7);
+      } else {
+        const maxOne = pointTowardTable(x, y, sideRight, 15);
+        makeLine(maxOne.x, y - 7, maxOne.x, y + 7);
+      }
+
+      edges.appendChild(g);
     }
-    function appendRelationEndLabels(r, ax, ay, aRight, bx, by, bLeftSide, opacity){
-      appendRelationLabel(ax, ay, aRight, relationLabel(r.fromRelation), opacity);
-      appendRelationLabel(bx, by, !bLeftSide, relationLabel(r.toRelation), opacity);
+    function appendRelationEndMarkers(r, ax, ay, aRight, bx, by, bLeftSide, color, opacity){
+      appendRelationEndMarker(ax, ay, aRight, r.fromRelation, r.fromMin ?? 0, color, opacity);
+      appendRelationEndMarker(bx, by, !bLeftSide, r.toRelation, r.toMin ?? 1, color, opacity);
     }
 
     function drawEdges(highlightId){
@@ -413,13 +458,17 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           clearHighlight();
         });
         edges.appendChild(hit);
-        // FK crow-foot dot at child side
-        const dot = document.createElementNS(SVGNS, 'circle');
-        dot.setAttribute('cx', ax); dot.setAttribute('cy', ay); dot.setAttribute('r', '3');
-        dot.setAttribute('fill', active ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
-        dot.setAttribute('opacity', highlightId && !active ? '0.15' : '0.9');
-        edges.appendChild(dot);
-        appendRelationEndLabels(r, ax, ay, aRight, bx, by, bLeftSide, highlightId && !active ? 0.15 : 0.9);
+        appendRelationEndMarkers(
+          r,
+          ax,
+          ay,
+          aRight,
+          bx,
+          by,
+          bLeftSide,
+          active ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'),
+          highlightId && !active ? 0.15 : 0.9,
+        );
       });
     }
 

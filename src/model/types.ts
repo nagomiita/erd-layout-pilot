@@ -102,9 +102,11 @@ export type DiagramRef = {
   fromTable: string;
   fromColumn: string;
   fromRelation?: string;
+  fromMin?: 0 | 1;
   toTable: string;
   toColumn: string;
   toRelation?: string;
+  toMin?: 0 | 1;
   onDelete?: string;
 };
 
