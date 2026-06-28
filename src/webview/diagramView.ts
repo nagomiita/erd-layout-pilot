@@ -38,6 +38,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
   });
   const title = options.title.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
   const relPath = options.dbmlRelPath.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+  const exportFilename = JSON.stringify(`${options.title || 'erd'}.svg`);
 
   return `<!doctype html>
 <html lang="en">
@@ -205,6 +206,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     </select>
     <button id="arrange">自動配置</button>
     <button id="fit">全体表示</button>
+    <button id="exportSvg">SVG出力</button>
     <button id="zoomIn" title="拡大">+</button>
     <button id="zoomOut" title="縮小">−</button>
     <button id="reload">再読み込み</button>
@@ -576,12 +578,17 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
           clearHighlight();
         });
         edges.appendChild(hit);
-        const dot = document.createElementNS(SVGNS, 'circle');
-        dot.setAttribute('cx', ax); dot.setAttribute('cy', ay); dot.setAttribute('r', '3');
-        dot.setAttribute('fill', edgeActive ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'));
-        dot.setAttribute('opacity', edgeActive ? '0.95' : '0.15');
-        edges.appendChild(dot);
-        appendRelationEndLabels(r, ax, ay, aRight, bx, by, bLeftSide, edgeActive ? 0.95 : 0.15);
+        appendRelationEndMarkers(
+          r,
+          ax,
+          ay,
+          aRight,
+          bx,
+          by,
+          bLeftSide,
+          edgeActive ? '#ffd479' : (isCascade ? '#f97583' : '#56a0d8'),
+          edgeActive ? 0.95 : 0.15,
+        );
       });
       scheduleMagnifier();
     }
@@ -761,8 +768,134 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       vscode.postMessage({ type:'moveTables', positions: list.map(t => ({ name:t.name, schema:t.schema, x: Math.round(t.x), y: Math.round(t.y) })) });
     }
 
+    function escapeXml(value){
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+    function exportBounds(){
+      const tableBoxes = DATA.tables.map(t => ({
+        minX: t.x,
+        minY: t.y,
+        maxX: t.x + C.CARD_WIDTH,
+        maxY: t.y + cardHeight(t),
+      }));
+      const groupBoxes = DATA.groups.map(g => {
+        const members = g.tables.map(id => tableById.get(id)).filter(Boolean);
+        if(!members.length) return null;
+        return {
+          minX: Math.min(...members.map(t=>t.x)) - 22,
+          minY: Math.min(...members.map(t=>t.y)) - 44,
+          maxX: Math.max(...members.map(t=>t.x + C.CARD_WIDTH)) + 22,
+          maxY: Math.max(...members.map(t=>t.y + cardHeight(t))) + 22,
+        };
+      }).filter(Boolean);
+      const boxes = tableBoxes.concat(groupBoxes);
+      if(!boxes.length) return { minX: 0, minY: 0, maxX: 800, maxY: 600 };
+      return {
+        minX: Math.min(...boxes.map(b => b.minX)) - 48,
+        minY: Math.min(...boxes.map(b => b.minY)) - 48,
+        maxX: Math.max(...boxes.map(b => b.maxX)) + 48,
+        maxY: Math.max(...boxes.map(b => b.maxY)) + 48,
+      };
+    }
+    function svgPointAwayFromTable(x, y, sideRight, distance){
+      return { x: x + (sideRight ? distance : -distance), y };
+    }
+    function svgRelationEndMarker(x, y, sideRight, relation, min, color, opacity){
+      if (relation !== '*' && relation !== '1') return '';
+      const parts = [];
+      const line = (x1, y1, x2, y2) => parts.push('<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
+      if (min === 0) {
+        const optional = svgPointAwayFromTable(x, y, sideRight, 6);
+        parts.push('<circle cx="' + optional.x + '" cy="' + optional.y + '" r="4"/>');
+      } else {
+        const mandatory = svgPointAwayFromTable(x, y, sideRight, 7);
+        line(mandatory.x, y - 7, mandatory.x, y + 7);
+      }
+      if (relation === '*') {
+        const stem = svgPointAwayFromTable(x, y, sideRight, 20);
+        const tip = svgPointAwayFromTable(x, y, sideRight, 13);
+        line(tip.x, tip.y, stem.x, stem.y);
+        line(tip.x, tip.y, stem.x, stem.y - 7);
+        line(tip.x, tip.y, stem.x, stem.y + 7);
+      } else {
+        const maxOne = svgPointAwayFromTable(x, y, sideRight, 15);
+        line(maxOne.x, y - 7, maxOne.x, y + 7);
+      }
+      return '<g stroke="' + color + '" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="' + opacity + '">' + parts.join('') + '</g>';
+    }
+    function exportDiagramSvg(){
+      clearHighlight();
+      const bounds = exportBounds();
+      const width = Math.ceil(bounds.maxX - bounds.minX);
+      const height = Math.ceil(bounds.maxY - bounds.minY);
+      const ox = -bounds.minX;
+      const oy = -bounds.minY;
+      const parts = [];
+      parts.push('<?xml version="1.0" encoding="UTF-8"?>');
+      parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">');
+      parts.push('<style>text{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.table{fill:#161b22;stroke:#30363d}.head{fill:#1f2d42}.name{fill:#c9d1d9;font-size:13px;font-weight:700}.sub{fill:#8b949e;font-size:10px}.col{fill:#c9d1d9;font-size:11px}.type{fill:#8b949e;font-size:10px}.pk{fill:#ffd479;font-weight:600}.fk{fill:#79c0ff}.tag{font-size:9px;font-weight:700}.group-label{font-size:12px;font-weight:700;letter-spacing:.06em}</style>');
+      parts.push('<rect width="100%" height="100%" fill="#0d1117"/>');
+      DATA.groups.forEach(g => {
+        const members = g.tables.map(id => tableById.get(id)).filter(Boolean);
+        if(!members.length) return;
+        const minX = Math.min(...members.map(t=>t.x)) - 22 + ox;
+        const minY = Math.min(...members.map(t=>t.y)) - 44 + oy;
+        const maxX = Math.max(...members.map(t=>t.x + C.CARD_WIDTH)) + 22 + ox;
+        const maxY = Math.max(...members.map(t=>t.y + cardHeight(t))) + 22 + oy;
+        const col = groupColor[g.name];
+        parts.push('<rect x="' + minX + '" y="' + minY + '" width="' + (maxX-minX) + '" height="' + (maxY-minY) + '" rx="16" fill="' + hexA(col, 0.05) + '" stroke="' + hexA(col, 0.45) + '" stroke-width="1.5"/>');
+        parts.push('<rect x="' + minX + '" y="' + minY + '" width="' + (maxX-minX) + '" height="28" rx="16" fill="' + hexA(col, 0.20) + '"/>');
+        parts.push('<text class="group-label" x="' + (minX + 14) + '" y="' + (minY + 19) + '" fill="' + col + '">' + escapeXml(g.name) + '</text>');
+      });
+      DATA.refs.forEach(r => {
+        const a = tableById.get(r.fromTable), b = tableById.get(r.toTable);
+        if(!a || !b) return;
+        const ay = colAnchorY(a, r.fromColumn) + oy, by = colAnchorY(b, r.toColumn) + oy;
+        const aCx = a.x + C.CARD_WIDTH/2, bCx = b.x + C.CARD_WIDTH/2;
+        const aRight = bCx >= aCx;
+        const ax = (aRight ? a.x + C.CARD_WIDTH : a.x) + ox;
+        const bLeftSide = bCx > aCx;
+        const bx = (bLeftSide ? b.x : b.x + C.CARD_WIDTH) + ox;
+        const dx = Math.max(40, Math.abs(bx-ax) * 0.4);
+        const c1x = ax + (aRight ? dx : -dx);
+        const c2x = bx + (bLeftSide ? -dx : dx);
+        const d = 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by;
+        const isCascade = (r.onDelete || '').toLowerCase() === 'cascade';
+        const color = isCascade ? '#f97583' : '#56a0d8';
+        parts.push('<path d="' + d + '" stroke="' + color + '" stroke-width="1.4" fill="none" opacity="0.85"' + (isCascade ? '' : ' stroke-dasharray="5 4"') + '/>');
+        parts.push(svgRelationEndMarker(ax, ay, aRight, r.fromRelation, r.fromMin ?? 0, color, 0.9));
+        parts.push(svgRelationEndMarker(bx, by, !bLeftSide, r.toRelation, r.toMin ?? 1, color, 0.9));
+      });
+      DATA.tables.forEach(t => {
+        const x = t.x + ox, y = t.y + oy, h = cardHeight(t);
+        const accent = t.group ? groupColor[t.group] : (t.headerColor || '#1f6feb');
+        const title = nameMode === 'logical' && logicalName(t.note) ? logicalName(t.note) : t.name;
+        const subtitle = nameMode === 'logical' && logicalName(t.note) ? t.name : logicalName(t.note);
+        parts.push('<rect class="table" x="' + x + '" y="' + y + '" width="' + C.CARD_WIDTH + '" height="' + h + '" rx="8"/>');
+        parts.push('<rect x="' + x + '" y="' + y + '" width="' + C.CARD_WIDTH + '" height="' + C.HEADER_HEIGHT + '" rx="8" fill="' + hexA(accent, 0.18) + '"/>');
+        parts.push('<line x1="' + x + '" y1="' + (y + C.HEADER_HEIGHT) + '" x2="' + (x + C.CARD_WIDTH) + '" y2="' + (y + C.HEADER_HEIGHT) + '" stroke="' + hexA(accent, 0.55) + '"/>');
+        parts.push('<text class="name" x="' + (x + 10) + '" y="' + (y + 21) + '">' + escapeXml(title) + '</text>');
+        if (subtitle) parts.push('<text class="sub" x="' + (x + 10) + '" y="' + (y + 31) + '">' + escapeXml(subtitle) + '</text>');
+        t.columns.forEach((c, i) => {
+          const cy = y + C.HEADER_HEIGHT + i * C.ROW_HEIGHT;
+          const colClass = c.pk ? 'col pk' : (c.fk ? 'col fk' : 'col');
+          const colName = nameMode === 'logical' && logicalName(c.note) ? logicalName(c.note) : c.name;
+          parts.push('<line x1="' + x + '" y1="' + cy + '" x2="' + (x + C.CARD_WIDTH) + '" y2="' + cy + '" stroke="#21262d"/>');
+          parts.push('<text class="' + colClass + '" x="' + (x + 10) + '" y="' + (cy + 15) + '">' + escapeXml(colName) + '</text>');
+          parts.push('<text class="type" x="' + (x + C.CARD_WIDTH - 10) + '" y="' + (cy + 15) + '" text-anchor="end">' + escapeXml(c.type) + '</text>');
+        });
+      });
+      parts.push('</svg>');
+      vscode.postMessage({ type:'exportSvg', svg: parts.join('\\n'), filename: ${exportFilename} });
+    }
+
     document.getElementById('arrange').addEventListener('click', () => arrange(document.getElementById('algo').value));
     document.getElementById('fit').addEventListener('click', fit);
+    document.getElementById('exportSvg').addEventListener('click', exportDiagramSvg);
     document.getElementById('zoomIn').addEventListener('click', () => { scale=Math.min(2.5,scale*1.2); applyTransform(); });
     document.getElementById('zoomOut').addEventListener('click', () => { scale=Math.max(0.12,scale/1.2); applyTransform(); });
     document.getElementById('reload').addEventListener('click', () => vscode.postMessage({ type:'reload' }));

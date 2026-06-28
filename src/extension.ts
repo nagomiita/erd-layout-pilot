@@ -219,6 +219,7 @@ function createLayoutPreviewHtml(payload: DbdiagramFile, title: string): string 
 }
 
 type IncomingPosition = { name: string; schema?: string; x: number; y: number };
+type IncomingSvgExport = { type: 'exportSvg'; svg: string; filename?: string };
 
 function upsertPosition(payload: DbdiagramFile, pos: IncomingPosition): void {
   const schemaName = pos.schema && pos.schema !== 'public' ? pos.schema : undefined;
@@ -242,6 +243,27 @@ async function persistPositions(positions: IncomingPosition[]): Promise<void> {
     upsertPosition(payload, pos);
   }
   await writeDbdiagram(filePath, payload);
+}
+
+async function exportDiagramSvg(message: IncomingSvgExport): Promise<void> {
+  if (!message.svg.trim()) {
+    throw new Error('SVG export payload is empty.');
+  }
+  const safeName = (message.filename || 'erd.svg')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/^\.+$/, 'erd.svg');
+  const fileName = safeName.toLowerCase().endsWith('.svg') ? safeName : `${safeName}.svg`;
+  const uri = await vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.file(path.join(getWorkspaceRoot(), fileName)),
+    filters: { 'SVG Image': ['svg'] },
+    saveLabel: 'Export SVG',
+  });
+  if (!uri) {
+    return;
+  }
+
+  await vscode.workspace.fs.writeFile(uri, Buffer.from(message.svg, 'utf8'));
+  void vscode.window.showInformationMessage(`ERD Diagram: exported SVG to ${uri.fsPath}`);
 }
 
 async function cleanupStaleTables(): Promise<number> {
@@ -342,6 +364,8 @@ async function openDiagram(context: vscode.ExtensionContext, uri?: vscode.Uri): 
           await renderDiagram();
         } else if (message.type === 'installLatestRelease') {
           await installLatestRelease(String(context.extension.packageJSON.version ?? ''));
+        } else if (message.type === 'exportSvg') {
+          await exportDiagramSvg(message as unknown as IncomingSvgExport);
         }
       } catch (error) {
         const text = error instanceof Error ? error.message : String(error);
