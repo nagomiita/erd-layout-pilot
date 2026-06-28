@@ -371,6 +371,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     function pointAwayFromTable(x, y, sideRight, distance){
       return { x: x + (sideRight ? distance : -distance), y };
     }
+    function relationPathOffset(relation){
+      return relation === '*' ? 20 : (relation === '1' ? 15 : 0);
+    }
+    function relationPathPoint(x, y, sideRight, relation){
+      return pointAwayFromTable(x, y, sideRight, relationPathOffset(relation));
+    }
     function appendRelationEndMarker(x, y, sideRight, relation, min, color, opacity){
       if (relation !== '*' && relation !== '1') return;
       const g = document.createElementNS(SVGNS, 'g');
@@ -434,10 +440,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         const ax = aRight ? a.x + C.CARD_WIDTH : a.x;
         const bLeftSide = bCx > aCx;
         const bx = bLeftSide ? b.x : b.x + C.CARD_WIDTH;
-        const dx = Math.max(40, Math.abs(bx-ax) * 0.4);
-        const c1x = ax + (aRight ? dx : -dx);
-        const c2x = bx + (bLeftSide ? -dx : dx);
-        const d = 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by;
+        const ap = relationPathPoint(ax, ay, aRight, r.fromRelation);
+        const bp = relationPathPoint(bx, by, !bLeftSide, r.toRelation);
+        const dx = Math.max(40, Math.abs(bp.x-ap.x) * 0.4);
+        const c1x = ap.x + (aRight ? dx : -dx);
+        const c2x = bp.x + (bLeftSide ? -dx : dx);
+        const d = 'M ' + ap.x + ' ' + ap.y + ' C ' + c1x + ' ' + ap.y + ' ' + c2x + ' ' + bp.y + ' ' + bp.x + ' ' + bp.y;
         const path = document.createElementNS(SVGNS, 'path');
         path.setAttribute('d', d);
         const isCascade = (r.onDelete || '').toLowerCase() === 'cascade';
@@ -553,10 +561,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         const ax = aRight ? a.x + C.CARD_WIDTH : a.x;
         const bLeftSide = bCx > aCx;
         const bx = bLeftSide ? b.x : b.x + C.CARD_WIDTH;
-        const dx = Math.max(40, Math.abs(bx-ax) * 0.4);
-        const c1x = ax + (aRight ? dx : -dx);
-        const c2x = bx + (bLeftSide ? -dx : dx);
-        const d = 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by;
+        const ap = relationPathPoint(ax, ay, aRight, r.fromRelation);
+        const bp = relationPathPoint(bx, by, !bLeftSide, r.toRelation);
+        const dx = Math.max(40, Math.abs(bp.x-ap.x) * 0.4);
+        const c1x = ap.x + (aRight ? dx : -dx);
+        const c2x = bp.x + (bLeftSide ? -dx : dx);
+        const d = 'M ' + ap.x + ' ' + ap.y + ' C ' + c1x + ' ' + ap.y + ' ' + c2x + ' ' + bp.y + ' ' + bp.x + ' ' + bp.y;
         const isCascade = (r.onDelete || '').toLowerCase() === 'cascade';
         const path = document.createElementNS(SVGNS, 'path');
         path.setAttribute('d', d);
@@ -804,6 +814,9 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     function svgPointAwayFromTable(x, y, sideRight, distance){
       return { x: x + (sideRight ? distance : -distance), y };
     }
+    function svgRelationPathPoint(x, y, sideRight, relation){
+      return svgPointAwayFromTable(x, y, sideRight, relationPathOffset(relation));
+    }
     function svgRelationEndMarker(x, y, sideRight, relation, min, color, opacity){
       if (relation !== '*' && relation !== '1') return '';
       const parts = [];
@@ -860,10 +873,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         const ax = (aRight ? a.x + C.CARD_WIDTH : a.x) + ox;
         const bLeftSide = bCx > aCx;
         const bx = (bLeftSide ? b.x : b.x + C.CARD_WIDTH) + ox;
-        const dx = Math.max(40, Math.abs(bx-ax) * 0.4);
-        const c1x = ax + (aRight ? dx : -dx);
-        const c2x = bx + (bLeftSide ? -dx : dx);
-        const d = 'M ' + ax + ' ' + ay + ' C ' + c1x + ' ' + ay + ' ' + c2x + ' ' + by + ' ' + bx + ' ' + by;
+        const ap = svgRelationPathPoint(ax, ay, aRight, r.fromRelation);
+        const bp = svgRelationPathPoint(bx, by, !bLeftSide, r.toRelation);
+        const dx = Math.max(40, Math.abs(bp.x - ap.x) * 0.4);
+        const c1x = ap.x + (aRight ? dx : -dx);
+        const c2x = bp.x + (bLeftSide ? -dx : dx);
+        const d = 'M ' + ap.x + ' ' + ap.y + ' C ' + c1x + ' ' + ap.y + ' ' + c2x + ' ' + bp.y + ' ' + bp.x + ' ' + bp.y;
         const isCascade = (r.onDelete || '').toLowerCase() === 'cascade';
         const color = isCascade ? '#f97583' : '#56a0d8';
         parts.push('<path d="' + d + '" stroke="' + color + '" stroke-width="1.4" fill="none" opacity="0.85"' + (isCascade ? '' : ' stroke-dasharray="5 4"') + '/>');
