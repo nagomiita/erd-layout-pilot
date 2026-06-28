@@ -20,7 +20,7 @@ import type { DiagramData, DiagramTable } from '../model/types';
 
 const CARD_WIDTH = 260;
 const HEADER_HEIGHT = 34;
-const ROW_HEIGHT = 22;
+const ROW_HEIGHT = 36;
 const CARD_PADDING = 8;
 
 const TABLE_GAP_X = 60;
