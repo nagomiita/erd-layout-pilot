@@ -86,6 +86,12 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     background: #21262d; color: var(--text); border: 1px solid var(--border);
     border-radius: 6px; padding: 5px 8px; font-size: 12px;
   }
+  #search {
+    width: 180px; min-width: 120px;
+    background: #0d1117; color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; font-size: 12px;
+  }
+  #search:focus { outline: none; border-color: var(--accent); }
   #banner {
     position: fixed; top: 44px; left: 0; right: 0; z-index: 15;
     background: #4d2222; color: #ffb4b4; padding: 8px 12px; font-size: 12px;
@@ -118,7 +124,9 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     border-bottom: 1px solid;
+    pointer-events: auto; cursor: grab; user-select: none;
   }
+  .group-card .gc-head:active { cursor: grabbing; }
   .group-card .gc-count { font-size: 10px; font-weight: 600; opacity: 0.7; letter-spacing: 0; }
   .card {
     position: absolute; width: ${CARD_WIDTH}px; background: var(--panel);
@@ -129,6 +137,11 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     border-color: #ffd479;
     box-shadow: 0 0 0 2px rgba(255,212,121,0.42), 0 12px 30px rgba(0,0,0,0.42);
     z-index: 3;
+  }
+  .card.search-match {
+    border-color: #7ee787;
+    box-shadow: 0 0 0 2px rgba(126,231,135,0.32), 0 12px 30px rgba(0,0,0,0.42);
+    z-index: 4;
   }
   .card.dim { opacity: 0.28; }
   .card-head {
@@ -221,6 +234,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     </select>
     <button id="arrange">自動配置</button>
     <button id="fit">全体表示</button>
+    <input id="search" type="search" placeholder="検索" title="テーブル・カラムを検索" />
     <button id="exportSvg">SVG出力</button>
     <button id="zoomIn" title="拡大">+</button>
     <button id="zoomOut" title="縮小">−</button>
@@ -285,7 +299,10 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
     let activeHighlightId = null;
     let activeEdgeHighlight = false;
     let dragTableId = null;
+    let dragGroupName = null;
     let nameMode = 'physical';
+    let searchMatches = [];
+    let searchIndex = -1;
 
     function appendNameLabel(parent, physicalName, logicalNameValue){
       const label = document.createElement('span');
@@ -370,6 +387,73 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         viewport.appendChild(el);
         cardEls.set(t.id, el);
       });
+    }
+
+    function searchableText(t){
+      return [
+        t.id,
+        t.name,
+        logicalName(t.note),
+        t.group || '',
+        ...t.columns.flatMap(c => [c.name, c.type, logicalName(c.note)]),
+      ].join('\\n').toLowerCase();
+    }
+
+    function centerTable(t){
+      const rect = stage.getBoundingClientRect();
+      scale = Math.max(scale, 0.7);
+      tx = rect.width / 2 - (t.x + C.CARD_WIDTH / 2) * scale;
+      ty = rect.height / 2 - (t.y + cardHeight(t) / 2) * scale;
+      applyTransform();
+    }
+
+    function applySearch(){
+      const input = document.getElementById('search');
+      const q = input.value.trim().toLowerCase();
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('search-match'));
+      searchMatches = [];
+      searchIndex = -1;
+      if (!q) {
+        clearHighlight();
+        return;
+      }
+      searchMatches = DATA.tables.filter(t => searchableText(t).includes(q)).map(t => t.id);
+      const matchSet = new Set(searchMatches);
+      document.querySelectorAll('.card').forEach(c => {
+        const matched = matchSet.has(c.dataset.id);
+        c.classList.toggle('search-match', matched);
+        c.classList.toggle('dim', !matched);
+      });
+      if (searchMatches.length) {
+        searchIndex = 0;
+        focusSearchMatch();
+      } else {
+        drawEdges();
+        scheduleMagnifier();
+      }
+    }
+
+    function restoreSearchClasses(){
+      if (!searchMatches.length) return;
+      const matchSet = new Set(searchMatches);
+      document.querySelectorAll('.card').forEach(c => {
+        c.classList.toggle('search-match', matchSet.has(c.dataset.id));
+      });
+    }
+
+    function focusSearchMatch(){
+      const t = tableById.get(searchMatches[searchIndex]);
+      if (t) {
+        centerTable(t);
+        highlightTable(t.id);
+        restoreSearchClasses();
+      }
+    }
+
+    function nextSearchMatch(){
+      if (!searchMatches.length) return;
+      searchIndex = (searchIndex + 1) % searchMatches.length;
+      focusSearchMatch();
     }
 
     function hexA(hex, a){
@@ -639,7 +723,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       activeEdgeHighlight = false;
       document.querySelectorAll('.card').forEach(c => {
         c.classList.remove('active');
-        c.classList.remove('dim');
+        if (!searchMatches.length) c.classList.remove('dim');
       });
       drawEdges();
       scheduleMagnifier();
@@ -655,6 +739,40 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       el.addEventListener('blur', () => {
         if (dragTableId) return;
         clearHighlight();
+      });
+    }
+
+    function attachGroupDrag(head, group, members){
+      head.addEventListener('mousedown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        dragGroupName = group.name;
+        const startX = e.clientX, startY = e.clientY;
+        const originals = members.map(t => ({ t, x: t.x, y: t.y }));
+        function onMove(ev){
+          const dx = (ev.clientX - startX) / scale;
+          const dy = (ev.clientY - startY) / scale;
+          originals.forEach(({ t, x, y }) => {
+            t.x = x + dx;
+            t.y = y + dy;
+            const el = cardEls.get(t.id);
+            if (el) { el.style.left = t.x + 'px'; el.style.top = t.y + 'px'; }
+          });
+          drawGroups();
+          drawEdges(activeHighlightId);
+          setMagnifierFromClient(ev.clientX, ev.clientY);
+        }
+        function onUp(){
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          dragGroupName = null;
+          redraw();
+          vscode.postMessage({
+            type:'moveTables',
+            positions: members.map(t => ({ name:t.name, schema:t.schema, x: Math.round(t.x), y: Math.round(t.y) })),
+          });
+        }
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
       });
     }
 
@@ -689,6 +807,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
         count.textContent = members.length + ' tables';
         head.appendChild(name);
         head.appendChild(count);
+        attachGroupDrag(head, g, members);
         box.appendChild(head);
         viewport.insertBefore(box, viewport.firstChild);
       });
@@ -739,6 +858,7 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
       }
     });
     stage.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.group-card .gc-head')) return;
       if (e.target.closest('.card')) return;
       stage.classList.add('panning');
       const sx = e.clientX - tx, sy = e.clientY - ty;
@@ -930,6 +1050,16 @@ export function renderDiagramHtml(data: DiagramData, options: DiagramViewOptions
 
     document.getElementById('arrange').addEventListener('click', () => arrange(document.getElementById('algo').value));
     document.getElementById('fit').addEventListener('click', fit);
+    document.getElementById('search').addEventListener('input', applySearch);
+    document.getElementById('search').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        nextSearchMatch();
+      } else if (e.key === 'Escape') {
+        e.currentTarget.value = '';
+        applySearch();
+      }
+    });
     document.getElementById('exportSvg').addEventListener('click', exportDiagramSvg);
     document.getElementById('zoomIn').addEventListener('click', () => { scale=Math.min(2.5,scale*1.2); applyTransform(); });
     document.getElementById('zoomOut').addEventListener('click', () => { scale=Math.max(0.12,scale/1.2); applyTransform(); });

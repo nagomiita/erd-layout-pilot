@@ -246,6 +246,19 @@ export async function buildDiagramData(
     .map((p) => positionKey(p.name, p.schemaName))
     .filter((key) => !knownIds.has(key));
 
+  const positionedTables = parsed.tables
+    .map((table) => {
+      const stored = positionByKey.get(table.id);
+      return stored ? { table, x: stored.x, y: stored.y } : undefined;
+    })
+    .filter((item): item is { table: ParsedTable; x: number; y: number } => item !== undefined);
+  const fallbackStartX =
+    positionedTables.length > 0
+      ? Math.max(...positionedTables.map((item) => item.x + GRID_GAP_X))
+      : 0;
+  const fallbackStartY =
+    positionedTables.length > 0 ? Math.min(...positionedTables.map((item) => item.y)) : 0;
+
   let autoIndex = 0;
   const tables: DiagramTable[] = parsed.tables.map((table) => {
     const stored = positionByKey.get(table.id);
@@ -257,8 +270,8 @@ export async function buildDiagramData(
       y = stored.y;
     } else {
       positioned = false;
-      x = (autoIndex % GRID_COLUMNS) * GRID_GAP_X;
-      y = Math.floor(autoIndex / GRID_COLUMNS) * GRID_GAP_Y;
+      x = fallbackStartX + (autoIndex % GRID_COLUMNS) * GRID_GAP_X;
+      y = fallbackStartY + Math.floor(autoIndex / GRID_COLUMNS) * GRID_GAP_Y;
       autoIndex += 1;
     }
     return {
